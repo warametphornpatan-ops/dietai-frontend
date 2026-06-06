@@ -8,7 +8,7 @@ const SUPABASE_URL = "https://tjabazzbmxxbumokdmxi.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_GojMcu7WXEt2ACOM4wgLDA_k5r1DM79";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const API_URL = "/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 interface RegisterResponse {
   id?: string;

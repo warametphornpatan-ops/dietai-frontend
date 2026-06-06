@@ -74,7 +74,7 @@ interface FoodEntry {
   timestamp: number;
 }
 
-const API_BASE = "/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 const FOOD_MENU_IDS = [
   54, 56, 57, 59, 58,
