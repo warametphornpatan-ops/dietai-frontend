@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://tjabazzbmxxbumokdmxi.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_GojMcu7WXEt2ACOM4wgLDA_k5r1DM79";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -447,7 +447,7 @@ const handleRequestOtpAndProceed = async () => {
 
         // 2. OTP ผ่านแล้ว → บันทึกข้อมูลลงตาราง user ผ่าน API
         if (verifyData?.user) {
-          const response = await fetch("/api/register", {
+          const response = await fetch(`${API_URL}/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -497,7 +497,7 @@ const handleRequestOtpAndProceed = async () => {
       };
 
 
-      const res = await fetch("/api/register", {
+      const res = await fetch(`${API_URL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
