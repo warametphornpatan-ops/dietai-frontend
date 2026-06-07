@@ -70,8 +70,8 @@ type RegisterPayload = {
   email?: string | null;
   username: string;
   password: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   gender: string;
   age: number;
   height_cm: number;
@@ -341,69 +341,62 @@ export default function RegisterWizard() {
   const back = () => setStep((s) => clamp(s - 1, 0, total - 1));
 
   // ── ส่ง OTP ผ่าน Supabase signUp() ─────────────────────────
-const handleRequestOtpAndProceed = async () => {
-  // 🔥 ดึงค่าจากฟอร์มทั้งหมดออกมารวมไว้ในก้อน formData ก้อนเดียว
-  const formData = watch();
-  
-  const currentEmail = (formData.email as string | undefined)?.trim() || "";
-  
-  // ถ้าไม่กรอกอีเมล → ส่ง register โดยตรงแล้ว return (ข้าม OTP)
-  if (!currentEmail) {
-    // เรียก handleSubmit เพื่อให้ react-hook-form ทำ validation ก่อนส่ง
-    handleSubmit(submitToApi)();
-    return;
-  }
-  
-  setSendingOtp(true);
-  
-  try {
-    // ดึงข้อมูลออกจากก้อน formData มาจัดเตรียมฟอร์แมตข้อมูล
-    const usernameVal = formData.username as string | undefined;
-    const firstNameVal = formData.firstName as string | undefined;
-    const lastNameVal = formData.lastName as string | undefined;
-    const citizenIdVal = formData.citizenID as string | undefined;
-    const genderVal = formData.gender as string | undefined;
-    const ageVal = formData.age as number | string | undefined;
-    const heightVal = formData.heightCm as number | string | undefined;
-    const weightVal = formData.weightKg as number | string | undefined;
-    const activityVal = formData.activityLevel as string | undefined;
-    const goalVal = formData.goal as string | undefined;
-    const healthVal = formData.healthInfo as string | undefined;
+  const handleRequestOtpAndProceed = async () => {
+    const formData = watch();
+    const currentEmail = (formData.email as string | undefined)?.trim() || "";
 
-    const { error } = await supabase.auth.signUp({
-      email: currentEmail,
-      password: (formData.password as string) || "",
-      options: {
-        data: {
-          username: usernameVal?.trim() || null,
-          first_name: firstNameVal?.trim() || null,
-          last_name: lastNameVal?.trim() || null,
-          citizen_id: (citizenIdVal || "").replace(/\D/g, ""),
-          gender: genderVal || null,
-          age: Number(ageVal) || 0,
-          height_cm: Number(heightVal) || 0,
-          weight_kg: Number(weightVal) || 0,
-          activity_level: activityVal || null,
-          goal: goalVal || null,
-          health_info: healthVal?.trim() || null,
+    if (!currentEmail) {
+      handleSubmit(submitToApi)();
+      return;
+    }
+
+    setSendingOtp(true);
+
+    try {
+      const usernameVal = formData.username as string | undefined;
+      const firstNameVal = formData.firstName as string | undefined;
+      const lastNameVal = formData.lastName as string | undefined;
+      const citizenIdVal = formData.citizenID as string | undefined;
+      const genderVal = formData.gender as string | undefined;
+      const ageVal = formData.age as number | string | undefined;
+      const heightVal = formData.heightCm as number | string | undefined;
+      const weightVal = formData.weightKg as number | string | undefined;
+      const activityVal = formData.activityLevel as string | undefined;
+      const goalVal = formData.goal as string | undefined;
+      const healthVal = formData.healthInfo as string | undefined;
+
+      const { error } = await supabase.auth.signUp({
+        email: currentEmail,
+        password: (formData.password as string) || "",
+        options: {
+          data: {
+            username: usernameVal?.trim() || null,
+            first_name: firstNameVal?.trim() || null,
+            last_name: lastNameVal?.trim() || null,
+            citizen_id: (citizenIdVal || "").replace(/\D/g, ""),
+            gender: genderVal || null,
+            age: Number(ageVal) || 0,
+            height_cm: Number(heightVal) || 0,
+            weight_kg: Number(weightVal) || 0,
+            activity_level: activityVal || null,
+            goal: goalVal || null,
+            health_info: healthVal?.trim() || null,
+          },
         },
-      },
-    });
+      });
 
-    if (error) throw error;
-    
-    setStep(9); // ย้ายไปหน้ากรอก OTP หลังจากส่งสำเร็จ
-    
-  } catch (err) {
-    console.error(err);
-    const errorMessage =
-      err instanceof Error ? err.message : "กรุณาตรวจสอบการตั้งค่าอีเมลของคุณ";
-    
-    alert(`❌ ไม่สามารถส่งรหัส OTP ได้: ${errorMessage}`);
-  } finally {
-    setSendingOtp(false);
-  }
-};
+      if (error) throw error;
+
+      setStep(9);
+    } catch (err) {
+      console.error(err);
+      const errorMessage =
+        err instanceof Error ? err.message : "กรุณาตรวจสอบการตั้งค่าอีเมลของคุณ";
+      alert(`❌ ไม่สามารถส่งรหัส OTP ได้: ${errorMessage}`);
+    } finally {
+      setSendingOtp(false);
+    }
+  };
 
   // ── บันทึกข้อมูลลงตาราง user ใน SQL ─────────────────────────
   async function submitToApi(v: FormValues) {
@@ -413,8 +406,9 @@ const handleRequestOtpAndProceed = async () => {
     const norm = {
       email: v.email.trim() === "" ? null : v.email.trim(),
       username: v.username.trim(),
-      first_name: v.firstName.trim(),
-      last_name: v.lastName.trim(),
+      // ✅ แก้ไข: ใช้ชื่อ field ตรงกับ Backend (firstName / lastName)
+      firstName: v.firstName.trim(),
+      lastName: v.lastName.trim(),
       gender: v.gender,
       age: Number(v.age) || 0,
       height_cm: Number(v.heightCm) || 0,
@@ -425,14 +419,13 @@ const handleRequestOtpAndProceed = async () => {
       activity_level: v.activityLevel,
       goal: v.goal,
       health_info: v.healthInfo?.trim() || null,
-      password: (v.password || "").slice(0, 72),
+      password: v.password,
       citizen_id: (v.citizenID || "").replace(/\D/g, "").slice(0, 13),
     };
 
     try {
       // ── กรณีมีอีเมล: ยืนยัน OTP จาก Supabase แล้วบันทึกลง SQL ──
       if (v.email && v.email.trim() !== "") {
-        // 1. ตรวจสอบรหัส OTP กับ Supabase
         const { data: verifyData, error: verifyError } =
           await supabase.auth.verifyOtp({
             email: v.email.trim(),
@@ -445,22 +438,21 @@ const handleRequestOtpAndProceed = async () => {
           return;
         }
 
-        // 2. OTP ผ่านแล้ว → บันทึกข้อมูลลงตาราง user ผ่าน API
         if (verifyData?.user) {
-          const response = await fetch(`${API_URL}/register`, {
+          // ✅ แก้ไข: เปลี่ยน /register → /user/register
+          const response = await fetch(`${API_URL}/user/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              // คอลัมน์ในตาราง user
-              id: verifyData.user.id,       // UUID จาก Supabase
+              id: verifyData.user.id,
               username: norm.username,
               password: norm.password,
               email: norm.email,
-              firstName: norm.first_name,
-              lastName: norm.last_name,
+              // ✅ แก้ไข: ใช้ firstName / lastName ตรงกับ Backend
+              firstName: norm.firstName,
+              lastName: norm.lastName,
               citizen_id: norm.citizen_id,
-              role: "user",                 // default role
-              // ข้อมูลสุขภาพ
+              role: "user",
               gender: norm.gender,
               age: norm.age,
               height_cm: norm.height_cm,
@@ -477,8 +469,7 @@ const handleRequestOtpAndProceed = async () => {
 
           if (!response.ok) {
             alert(
-              `เกิดข้อผิดพลาดในการบันทึกข้อมูล: ${result.message || "บันทึกไม่สำเร็จ"
-              }`
+              `เกิดข้อผิดพลาดในการบันทึกข้อมูล: ${result.message || "บันทึกไม่สำเร็จ"}`
             );
             return;
           }
@@ -491,13 +482,26 @@ const handleRequestOtpAndProceed = async () => {
 
       // ── กรณีไม่มีอีเมล: ลงทะเบียนผ่าน custom API โดยตรง ──────
       const payload: RegisterPayload = {
-        ...norm,
-        email: norm.email ?? undefined,
-        password: v.password,
+        email: norm.email,
+        username: norm.username,
+        password: norm.password,
+        // ✅ แก้ไข: ใช้ firstName / lastName ตรงกับ Backend
+        firstName: norm.firstName,
+        lastName: norm.lastName,
+        gender: norm.gender,
+        age: norm.age,
+        height_cm: norm.height_cm,
+        weight_kg: norm.weight_kg,
+        target_weight_kg: norm.target_weight_kg,
+        waist_cm: norm.waist_cm,
+        activity_level: norm.activity_level,
+        goal: norm.goal,
+        health_info: norm.health_info,
+        citizen_id: norm.citizen_id,
       };
 
-
-      const res = await fetch(`${API_URL}/register`, {
+      // ✅ แก้ไข: เปลี่ยน /register → /user/register
+      const res = await fetch(`${API_URL}/user/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
