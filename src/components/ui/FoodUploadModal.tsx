@@ -116,6 +116,8 @@ function setCurrentUserNutrition(cal: number, carb: number) {
 export default function FoodUploadModal({ open, onClose }: Props) {
   const [mode, setMode] = useState<Mode>("menu");
   const [imageURL, setImageURL] = useState<string>("");
+  // [CHANGED 1] เพิ่ม state เก็บ File จริงแทน blob URL
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const [detectedFood, setDetectedFood] = useState<ThaiFoodMenu | null>(null);
   const [detectStatus, setDetectStatus] = useState<DetectStatus>("idle");
@@ -167,6 +169,8 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     if (!open) {
       setMode("menu");
       setImageURL("");
+      // [CHANGED 1] reset imageFile ด้วย
+      setImageFile(null);
       setDetectedFood(null);
       setDetectStatus("idle");
       setDetectError(null);
@@ -214,6 +218,8 @@ export default function FoodUploadModal({ open, onClose }: Props) {
         );
       }
 
+      // [CHANGED 1] เก็บ File จริงไว้ใช้ตอน upload, blob URL ใช้แค่แสดง preview
+      setImageFile(file);
       setImageURL(URL.createObjectURL(file));
     } catch {
       setDetectError("เกิดข้อผิดพลาดในการแปลงไฟล์รูปภาพ");
@@ -292,12 +298,10 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     }
   };
 
-  // ─── upload รูป ───
-  async function uploadImageToServer(dataURL: string) {
-    const res = await fetch(dataURL);
-    const blob = await res.blob();
+  // [CHANGED 2] uploadImageToServer รับ File โดยตรง ไม่ต้อง fetch blob URL อีกต่อไป
+  async function uploadImageToServer(file: File) {
     const form = new FormData();
-    form.append("file", blob, "food.jpg");
+    form.append("file", file, "food.jpg");
     const token = localStorage.getItem("token")?.replace(/"/g, "");
     const uploadRes = await fetch(`${API_BASE}/food-images`, {
       method: "POST",
@@ -315,20 +319,22 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     return data as { url?: string };
   }
 
-  // ─── บันทึก ───
+  // [CHANGED 3] saveNutrition รับ File | null แทน dataURL
   async function saveNutrition(
-    dataURL: string,
+    file: File | null,
     nutToAdd: { menu: string; cal: number; carb: number; protein: number; fat: number }
   ) {
     try {
       setSaveLoading(true);
-      let imageUrl = dataURL;
+      let imageUrl = "";
 
-      try {
-        const uploadResult = await uploadImageToServer(dataURL);
-        if (uploadResult?.url) imageUrl = uploadResult.url;
-      } catch (e) {
-        console.warn("upload image failed:", e);
+      if (file) {
+        try {
+          const uploadResult = await uploadImageToServer(file);
+          if (uploadResult?.url) imageUrl = uploadResult.url;
+        } catch (e) {
+          console.warn("upload image failed:", e);
+        }
       }
 
       const token = localStorage.getItem("token")?.replace(/"/g, "");
@@ -493,7 +499,6 @@ export default function FoodUploadModal({ open, onClose }: Props) {
               {showResult && (
                 <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-3 animate-in fade-in slide-in-from-bottom-2">
 
-                  {/* [CHANGED] กรณี matched: แสดงชื่อที่ AI ทายได้ด้านบน */}
                   {detectStatus === "matched" && detectedFood && (
                     <div className="flex items-center gap-2 pb-2 border-b border-emerald-100">
                       <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
@@ -503,7 +508,6 @@ export default function FoodUploadModal({ open, onClose }: Props) {
                     </div>
                   )}
 
-                  {/* [CHANGED] Dropdown เมนูอาหาร — แสดงทั้งกรณี matched และ failed */}
                   <div className="flex items-center gap-2">
                     <UtensilsCrossed size={16} className="text-slate-400 shrink-0" />
                     <Select value={selectedFood} onValueChange={setSelectedFood}>
@@ -618,7 +622,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
                 </div>
               )}
 
-              {/* [CHANGED] ปุ่มวิเคราะห์ — ซ่อนเมื่อวิเคราะห์เสร็จแล้ว (showResult = true) */}
+              {/* ปุ่มวิเคราะห์ */}
               {!detectLoading && !showResult && (
                 <Button
                   onClick={() => void detectFoodFromImageURL(imageURL)}
@@ -629,10 +633,10 @@ export default function FoodUploadModal({ open, onClose }: Props) {
                 </Button>
               )}
 
-              {/* ปุ่มบันทึก */}
+              {/* [CHANGED 4] ปุ่มบันทึก — ส่ง imageFile แทน imageURL */}
               <Button
                 onClick={async () => {
-                  const res = await saveNutrition(imageURL, {
+                  const res = await saveNutrition(imageFile, {
                     menu: finalMenuName,
                     cal: totalCal,
                     carb: totalCarb,
@@ -660,6 +664,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
                 onClick={() => {
                   setMode("menu");
                   setImageURL("");
+                  setImageFile(null);
                   setDetectedFood(null);
                   setDetectStatus("idle");
                   setDetectError(null);
