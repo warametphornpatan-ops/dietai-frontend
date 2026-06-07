@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 const BACKEND = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 const BMI_MENU_IDS: Record<string, number[]> = {
-  "under":       [62, 68, 63, 82, 72, 69, 83, 2, 76, 78, 74, 54, 56, 57],
-  "normal":      [59, 58, 66, 71, 80, 62, 68, 54, 56, 57, 85, 86],
-  "over":        [62, 68, 69, 2, 54, 56, 85, 86],
-  "severe-over": [68, 69, 2, 85, 86],
+  "under":       [62, 68, 63, 82, 72, 69, 83, 2, 76, 78, 74, 54, 56, 57, 107, 108, 109, 111, 112],
+  "normal":      [59, 58, 66, 71, 80, 62, 68, 54, 56, 57, 85, 86, 99, 100, 105, 106, 108, 109, 110, 111, 112],
+  "over":        [62, 68, 69, 2, 54, 56, 85, 86, 98, 111, 112],
+  "severe-over": [68, 69, 2, 85, 86, 98, 111, 112],
 };
 
 export async function GET(req: NextRequest) {
