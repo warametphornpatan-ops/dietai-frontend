@@ -31,6 +31,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, data: filtered });
   } catch (err) {
     console.error("recommendations error:", err);
-    return NextResponse.json({ success: false, data: [] }, { status: 500 });
+    return NextResponse.json({ 
+        success: false, 
+        data: [],
+        error: String(err),
+        backend: BACKEND 
+    }, 
+        { status: 500 });
   }
 }
