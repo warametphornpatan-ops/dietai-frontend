@@ -134,7 +134,7 @@ export default function DoctorDashboard() {
       });
 
       if (orgCode) {
-        fetch(`/api/organizations/${orgCode}`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/organizations/${orgCode}`)
           .then((res) => {
             if (res.ok) return res.json();
             throw new Error("Failed to fetch organization");
@@ -153,7 +153,7 @@ export default function DoctorDashboard() {
   const loadPatients = useCallback(async (kw: string) => {
     if (!kw.trim()) { setPatients([]); return; }
     try {
-      const res = await fetch(`/api/doctors/patients?name=${encodeURIComponent(kw)}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/doctors/patients?name=${encodeURIComponent(kw)}`);
       const data = await res.json();
       if (Array.isArray(data)) {
         setPatients(data);
@@ -175,7 +175,7 @@ export default function DoctorDashboard() {
     if (!targetId) { alert("ไม่พบรหัสผู้ป่วย"); return; }
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/doctors/patients/${targetId}/health-records`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/doctors/patients/${targetId}/health-records`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ systolic: systolicInput ? parseInt(systolicInput) : null, diastolic: diastolicInput ? parseInt(diastolicInput) : null, pulse: pulseInput ? parseInt(pulseInput) : null, recommendation: recInput }),
       });
