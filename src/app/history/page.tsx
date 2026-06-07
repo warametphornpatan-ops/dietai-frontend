@@ -56,7 +56,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 
 const getImageUrl = (url?: string): string => {
-  if (!url) return "https://via.placeholder.com/96?text=No+Img";
+  if (!url) return "";
   
   if (url.startsWith("http://") || url.startsWith("https://")) {
     if (url.includes("localhost") || url.includes("127.0.0.1")) {
@@ -71,6 +71,19 @@ const getImageUrl = (url?: string): string => {
   }
   
   return `${API_BASE}${url.startsWith("/") ? "" : "/"}${url}`;
+};
+
+const getFoodEmoji = (foodName?: string): string => {
+  if (!foodName) return "🍱";
+  const name = foodName.toLowerCase();
+  if (name.includes("ข้าว")) return "🍚";
+  if (name.includes("ก๋วยเตี๋ยว") || name.includes("เส้น")) return "🍜";
+  if (name.includes("ผลไม้") || name.includes("กล้วย") || name.includes("แอปเปิ้ล")) return "🍎";
+  if (name.includes("เครื่องดื่ม") || name.includes("น้ำ") || name.includes("ชา") || name.includes("กาแฟ")) return "🥤";
+  if (name.includes("ขนม")) return "🍰";
+  if (name.includes("ไก่")) return "🍗";
+  if (name.includes("หมู")) return "🥩";
+  return "🍱";
 };
 
 export default function DiaryPage() {
@@ -194,8 +207,6 @@ export default function DiaryPage() {
   };
 
   const totalCalories = foodEntries.reduce((sum, e) => sum + (e.calories ?? e.cal ?? 0), 0);
-  
-  // ✨ แก้ไขที่ 1: ปัดเศษขึ้น (Math.ceil) สำหรับคาร์บรวม
   const totalCarbs = Math.ceil(foodEntries.reduce((sum, e) => sum + (e.carbs ?? e.carb ?? 0), 0));
 
   const chartData = useMemo(() => {
@@ -231,7 +242,6 @@ export default function DiaryPage() {
       }
     });
 
-    // ✨ แก้ไขที่ 2: ปัดเศษขึ้นสำหรับข้อมูลที่จะนำไปแสดงในกราฟ
     return [
       { ...groupedData.morning, carbs: Math.ceil(groupedData.morning.carbs) },
       { ...groupedData.noon, carbs: Math.ceil(groupedData.noon.carbs) },
@@ -328,15 +338,21 @@ export default function DiaryPage() {
                 {foodEntries.map((entry, idx) => (
                   <Card key={entry.id || idx} className="group border-0 shadow-sm ring-1 ring-gray-100 bg-white hover:shadow-md transition-all duration-200 overflow-hidden">
                     <CardContent className="p-3 flex gap-4 items-center">
-                      <div className="w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden shrink-0 bg-gray-100 relative">
-                        <img
-                          src={getImageUrl(entry.image_url || entry.imageUrl)}
-                          alt={entry.food_name || entry.menu || "รูปอาหาร"}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => { 
-                            e.currentTarget.src = "https://via.placeholder.com/96?text=Food"; 
-                          }}
-                        />
+                      {/* รูปภาพ + emoji fallback */}
+                      <div className="w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden shrink-0 bg-emerald-50 relative flex items-center justify-center text-4xl">
+                        <span className="select-none">
+                          {getFoodEmoji(entry.food_name || entry.menu)}
+                        </span>
+                        {getImageUrl(entry.image_url || entry.imageUrl) && (
+                          <img
+                            src={getImageUrl(entry.image_url || entry.imageUrl)}
+                            alt={entry.food_name || entry.menu || "รูปอาหาร"}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0 z-10"
+                            onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0 py-1">
                         <div className="flex justify-between items-start mb-1">
@@ -354,7 +370,6 @@ export default function DiaryPage() {
                           <div className="w-px h-8 bg-gray-100"></div>
                           <div className="flex items-center gap-1.5">
                             <div className="p-1 rounded bg-amber-50 text-amber-500"><Wheat size={14} /></div>
-                            {/* ✨ แก้ไขที่ 3: ปัดเศษขึ้นสำหรับคาร์บที่แสดงในแต่ละรายการ */}
                             <div><span className="block text-sm font-bold text-gray-700">{Math.ceil(entry.carbs ?? entry.carb ?? 0)}</span><span className="block text-[10px] text-gray-400 -mt-0.5">carb</span></div>
                           </div>
                         </div>
