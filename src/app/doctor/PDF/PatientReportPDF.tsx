@@ -202,12 +202,10 @@ const ReportDocument = ({ patientData, doctorData, currentRecord }: PatientRepor
       {/* 2. ข้อมูลกำกับเอกสาร */}
       <PdfView style={styles.metaInfoBox}>
         <PdfView>
-          <PdfText>แพทย์ผู้ตรวจ: {doctorData ? `นพ./พญ. ${doctorData.firstName} ${doctorData.lastName}` : "—"}</PdfText>
-          <PdfText>รหัสประจำตัวแพทย์: {doctorData?.doctorId || "—"}</PdfText>
+          <PdfText>แพทย์ผู้ตรวจ: {doctorData ? `แพทย์: ${doctorData.firstName} ${doctorData.lastName}` : "—"}</PdfText>
         </PdfView>
         <PdfView style={{ textAlign: 'right' }}>
           <PdfText>วันที่พิมพ์เอกสาร: {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</PdfText>
-          <PdfText>{doctorData?.orgCode ? `รหัสหน่วยงาน: ${doctorData.orgCode}` : ""}</PdfText>
         </PdfView>
       </PdfView>
 
