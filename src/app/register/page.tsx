@@ -458,17 +458,17 @@ export default function RegisterWizard() {
                     borderColor: usernameChecked && usernameAvailable
                       ? "#16a360"
                       : usernameChecked && !usernameAvailable
-                      ? "#ef4444"
-                      : username?.length >= 3 && !usernameChecked
-                      ? "#ef4444"
-                      : "#c8e8d8",
+                        ? "#ef4444"
+                        : username?.length >= 3 && !usernameChecked
+                          ? "#ef4444"
+                          : "#c8e8d8",
                   }}
                   onFocus={(e) => (e.currentTarget.style.borderColor = "#16a360")}
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor =
                       usernameChecked && usernameAvailable ? "#16a360"
-                      : username?.length >= 3 ? "#ef4444"
-                      : "#c8e8d8";
+                        : username?.length >= 3 ? "#ef4444"
+                          : "#c8e8d8";
                   }}
                 />
                 <button
@@ -478,36 +478,48 @@ export default function RegisterWizard() {
                   style={{
                     padding: "0 16px",
                     borderRadius: 12,
-                    border: "none",
-                    background: checkingUsername || !username || username.length < 3
-                      ? "#a7d4bc"
-                      : "linear-gradient(135deg,#16a360,#0d8a4f)",
-                    color: "#fff",
-                    fontWeight: 700,
+                    border: usernameChecked && usernameAvailable === true
+                      ? "1.5px solid #86efac"
+                      : "1.5px solid #fca5a5",
+                    background: usernameChecked && usernameAvailable === true
+                      ? "#dcfce7"
+                      : "#fee2e2",
+                    color: usernameChecked && usernameAvailable === true
+                      ? "#16a360"
+                      : "#dc2626",
                     fontSize: 13,
+                    fontWeight: 600,
                     cursor: checkingUsername || !username || username.length < 3 ? "not-allowed" : "pointer",
+                    opacity: checkingUsername || !username || username.length < 3 ? 0.5 : 1,
                     whiteSpace: "nowrap",
                     flexShrink: 0,
-                    boxShadow: "0 4px 12px rgba(22,163,96,0.25)",
                     transition: "all 0.2s",
                   }}
                 >
-                  {checkingUsername ? "⏳ กำลังตรวจ..." : "ตรวจสอบ"}
+                  {checkingUsername ? "กำลังตรวจ..." : "ตรวจสอบ"}
                 </button>
               </div>
 
               {/* ผลตรวจสอบ */}
-              {usernameChecked && usernameAvailable === true && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, padding: "7px 12px", borderRadius: 8, background: "rgba(22,163,96,0.08)", border: "1px solid rgba(22,163,96,0.25)" }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a360" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                  <span style={{ fontSize: 12, color: "#16a360", fontWeight: 600 }}>ตรวจสอบแล้ว — ชื่อ username นี้ใช้ได้</span>
+              {usernameChecked && usernameAvailable !== null && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 7,
+                  padding: "8px 12px", borderRadius: 10, marginTop: 2,
+                  background: usernameAvailable ? "rgba(22,163,96,0.08)" : "rgba(239,68,68,0.07)",
+                  border: `1px solid ${usernameAvailable ? "rgba(22,163,96,0.25)" : "rgba(239,68,68,0.2)"}`,
+                }}>
+                  {usernameAvailable
+                    ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a360" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
+                  <span style={{ fontSize: 13, fontWeight: 500, color: usernameAvailable ? "#0d6e43" : "#dc2626" }}>
+                    {usernameAvailable ? "สามารถใช้ชื่อผู้ใช้นี้ได้" : "ชื่อผู้ใช้นี้มีในระบบแล้ว"}
+                  </span>
                 </div>
               )}
-              {usernameChecked && usernameAvailable === false && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, padding: "7px 12px", borderRadius: 8, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.25)" }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                  <span style={{ fontSize: 12, color: "#ef4444", fontWeight: 600 }}>ชื่อนี้ถูกใช้งานแล้ว กรุณาเลือกชื่ออื่น</span>
-                </div>
+              {!usernameChecked && username?.length >= 3 && (
+                <p style={{ fontSize: 12, color: "#ef4444", margin: "5px 0 0 2px" }}>
+                  กรุณากดตรวจสอบก่อนดำเนินการต่อ
+                </p>
               )}
               {!usernameChecked && username?.length >= 3 && (
                 <p style={{ fontSize: 12, color: "#ef4444", margin: "5px 0 0 2px" }}>กรุณากดตรวจสอบก่อนดำเนินการต่อ</p>
