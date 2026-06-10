@@ -7,10 +7,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 type Doctor = {
   doctor_id: string; org_code: string; first_name: string;
   last_name: string; username: string; email: string | null;
+  position: string | null; // ✅ เพิ่ม position
 };
 type DoctorPayload = {
   org_code: string; first_name: string; last_name: string;
-  username: string; email: string; citizen_id?: string;
+  username: string; email: string; citizen_id?: string; position?: string;
 };
 
 const inputBase: React.CSSProperties = {
@@ -53,16 +54,15 @@ export default function AdminDashboardPage() {
   const [adminOrgName, setAdminOrgName] = useState<string>("");
   const [adminName, setAdminName] = useState<string>("");
 
-  // States for Add Form
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "ok" | "error">("idle");
   const [usernameErrorDetail, setUsernameErrorDetail] = useState("");
   const [form, setForm] = useState({ first_name: "", last_name: "", citizen_id: "", username: "", email: "" });
 
-  // States for Edit Form
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "" });
+  // ✅ เพิ่ม position ใน editForm
+  const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", position: "" });
 
   function getAuthHeaders(extraHeaders = {}) {
     const token = localStorage.getItem("token");
@@ -102,7 +102,7 @@ export default function AdminDashboardPage() {
     } catch (e) { console.error(e); }
   }
 
-  async function handleCheckUsername(edit = false) {
+  async function handleCheckUsername() {
     const username = form.username.trim();
     const org_code = adminOrgCode;
     if (!username) { alert("กรุณากรอก Username ก่อน"); return; }
@@ -141,7 +141,7 @@ export default function AdminDashboardPage() {
         body: JSON.stringify({ org_code: adminOrgCode, first_name: form.first_name, last_name: form.last_name, citizen_id: cd, username: form.username, email: form.email }),
       });
       if (!res.ok) { const d = await res.json(); alert(d.detail || "เพิ่มแพทย์ไม่สำเร็จ"); return; }
-      alert("✅ เพิ่มข้อมูลแพทย์สำเร็จ! ระบบได้ส่งอีเมลคำขอให้ตั้งรหัสผ่านไปยังแพทย์เรียบร้อยแล้ว");
+      alert("✅ เพิ่มข้อมูลแพทย์สำเร็จ!");
       setForm({ first_name: "", last_name: "", citizen_id: "", username: "", email: "" });
       setUsernameStatus("idle");
       setUsernameErrorDetail("");
@@ -152,14 +152,15 @@ export default function AdminDashboardPage() {
 
   function handleEditClick(doc: Doctor) {
     setEditingId(doc.doctor_id);
-    setEditForm({ first_name: doc.first_name, last_name: doc.last_name, email: doc.email || "" });
+    // ✅ โหลด position เข้า editForm ด้วย
+    setEditForm({ first_name: doc.first_name, last_name: doc.last_name, email: doc.email || "", position: doc.position || "" });
     setIsEditModalOpen(true);
   }
 
   function handleCloseModal() {
     setIsEditModalOpen(false);
     setEditingId(null);
-    setEditForm({ first_name: "", last_name: "", email: "" });
+    setEditForm({ first_name: "", last_name: "", email: "", position: "" });
   }
 
   async function handleUpdateDoctor(e: React.FormEvent) {
@@ -175,6 +176,7 @@ export default function AdminDashboardPage() {
           first_name: editForm.first_name,
           last_name: editForm.last_name,
           email: editForm.email,
+          position: editForm.position, // ✅ ส่ง position ไปด้วย
         }),
       });
       if (!res.ok) { const d = await res.json(); alert(d.detail || "แก้ไขไม่สำเร็จ"); return; }
@@ -186,7 +188,7 @@ export default function AdminDashboardPage() {
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`ยืนยันลบแพทย์ "${name}" ออกจากระบบ?`)) return;
+    if (!confirm(`ยืนยันลบ "${name}" ออกจากระบบ?`)) return;
     try {
       const res = await fetch(`${API_URL}/admins/doctors/${id}`, { method: "DELETE", headers: getAuthHeaders() });
       if (!res.ok) { alert("ลบไม่สำเร็จ"); return; }
@@ -245,20 +247,11 @@ export default function AdminDashboardPage() {
                   <SI required placeholder="ภาษาอังกฤษ" value={form.username}
                     style={{ flex: 1, borderColor: usernameStatus === "ok" ? "#22c55e" : usernameStatus === "error" ? "#ef4444" : "#e2e8f0" }}
                     onChange={e => { setForm(p => ({ ...p, username: e.target.value })); setUsernameStatus("idle"); setUsernameErrorDetail(""); }} />
-                  
-                  {/* ปุ่มตรวจสอบที่แก้ไขแล้ว */}
-                  <button type="button" onClick={() => handleCheckUsername(false)} disabled={checkingUsername || !form.username}
-                    style={{ 
-                      padding: "0 14px", 
-                      borderRadius: 10, 
-                      fontSize: 12, 
-                      fontWeight: 600, 
-                      whiteSpace: "nowrap", 
-                      flexShrink: 0,
-                      transition: "all 0.2s",
-                      cursor: checkingUsername || !form.username ? "not-allowed" : "pointer", 
+                  <button type="button" onClick={handleCheckUsername} disabled={checkingUsername || !form.username}
+                    style={{
+                      padding: "0 14px", borderRadius: 10, fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0, transition: "all 0.2s",
+                      cursor: checkingUsername || !form.username ? "not-allowed" : "pointer",
                       opacity: checkingUsername || !form.username ? 0.5 : 1,
-                      // เปลี่ยนสีปุ่มตามสถานะ (ok = เขียว, อื่นๆ = แดง)
                       border: usernameStatus === "ok" ? "1.5px solid #22c55e" : "1.5px solid #fecaca",
                       background: usernameStatus === "ok" ? "#f0fdf4" : "#fef2f2",
                       color: usernameStatus === "ok" ? "#16a34a" : "#ef4444"
@@ -269,12 +262,12 @@ export default function AdminDashboardPage() {
                 {usernameStatus === "ok" && <span style={{ fontSize: 11, color: "#15803d", marginTop: 2 }}>✅ สามารถใช้งาน Username นี้ได้</span>}
                 {usernameStatus === "error" && <span style={{ fontSize: 11, color: "#ef4444", marginTop: 2 }}>❌ {usernameErrorDetail || "Username นี้ถูกใช้งานแล้ว"}</span>}
               </Field>
-              <Field label="อีเมลแพทย์" required hint="(ระบบจะส่งลิงก์ตั้งรหัสผ่านไปที่นี่)">
+              <Field label="อีเมล" required>
                 <SI required type="email" placeholder="doctor@example.com" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
               </Field>
               <button type="submit" disabled={loading}
                 style={{ width: "100%", padding: "11px", marginTop: 4, borderRadius: 11, border: "none", fontSize: 14, fontWeight: 700, color: "#fff", cursor: loading ? "not-allowed" : "pointer", background: loading ? "#93c5fd" : "linear-gradient(135deg,#3b82f6,#1d4ed8)", boxShadow: loading ? "none" : "0 4px 14px rgba(59,130,246,0.3)", transition: "all 0.2s" }}>
-                {loading ? "กำลังบันทึก..." : "+ ส่งลิงก์ตั้งรหัสผ่านและบันทึก"}
+                {loading ? "กำลังบันทึก..." : "+ บันทึกข้อมูลบุคลากร"}
               </button>
             </form>
           </div>
@@ -284,12 +277,12 @@ export default function AdminDashboardPage() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 3, height: 18, borderRadius: 99, background: "linear-gradient(180deg,#3b82f6,#1d4ed8)" }} />
-                <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>รายชื่อแพทย์ในหน่วยงานของคุณ</h2>
+                <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>รายชื่อบุคลากรในหน่วยงานของคุณ</h2>
                 <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eff6ff", color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe" }}>{filtered.length} คน</span>
               </div>
               <div style={{ position: "relative" }}>
                 <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                <input placeholder="ค้นหาชื่อแพทย์..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                <input placeholder="ค้นหาชื่อ..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                   style={{ ...inputBase, width: 210, paddingLeft: 32, fontSize: 13 }}
                   onFocus={e => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.background = "#eff6ff"; }}
                   onBlur={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#f8fafc"; }} />
@@ -299,17 +292,18 @@ export default function AdminDashboardPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1.5px solid #e2e8f0" }}>
-                    {["#", "ชื่อ-นามสกุล", "Username", "อีเมล", "จัดการ"].map((h, i) => (
-                      <th key={h} style={{ padding: "10px 12px", textAlign: i === 0 || i === 4 ? "center" : "left", fontWeight: 600, color: "#475569", whiteSpace: "nowrap", fontSize: 12 }}>{h}</th>
+                    {/* ✅ เพิ่มคอลัมน์ตำแหน่ง */}
+                    {["#", "ชื่อ-นามสกุล", "ตำแหน่ง", "Username", "อีเมล", "จัดการ"].map((h, i) => (
+                      <th key={h} style={{ padding: "10px 12px", textAlign: i === 0 || i === 5 ? "center" : "left", fontWeight: 600, color: "#475569", whiteSpace: "nowrap", fontSize: 12 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
-                    <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                    <tr><td colSpan={6} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 32, opacity: 0.3 }}>👨‍⚕️</span>
-                        <span>{searchQuery ? "ไม่พบแพทย์ที่ค้นหา" : "ยังไม่มีรายชื่อแพทย์ในหน่วยงานนี้"}</span>
+                        <span>{searchQuery ? "ไม่พบบุคลากรที่ค้นหา" : "ยังไม่มีรายชื่อบุคลากรในหน่วยงานนี้"}</span>
                       </div>
                     </td></tr>
                   ) : filtered.map((doc, i) => {
@@ -327,6 +321,16 @@ export default function AdminDashboardPage() {
                             </div>
                             <span style={{ color: "#1e293b", fontWeight: 500 }}>{doc.first_name} {doc.last_name}</span>
                           </div>
+                        </td>
+                        {/* ✅ แสดงตำแหน่ง */}
+                        <td style={{ padding: "10px 12px" }}>
+                          {doc.position ? (
+                            <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: "#eff6ff", color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe", whiteSpace: "nowrap" }}>
+                              {doc.position}
+                            </span>
+                          ) : (
+                            <span style={{ color: "#cbd5e1", fontSize: 12 }}>—</span>
+                          )}
                         </td>
                         <td style={{ padding: "10px 12px", color: "#64748b" }}>{u}</td>
                         <td style={{ padding: "10px 12px", color: "#94a3b8" }}>{doc.email || "—"}</td>
@@ -363,7 +367,7 @@ export default function AdminDashboardPage() {
             <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fffbeb" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 3, height: 18, borderRadius: 99, background: "linear-gradient(180deg,#f59e0b,#d97706)" }} />
-                <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#92400e" }}>แก้ไขข้อมูลแพทย์</h2>
+                <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#92400e" }}>แก้ไขข้อมูลบุคลากร</h2>
               </div>
               <button onClick={handleCloseModal}
                 style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#94a3b8", fontSize: 16, fontWeight: 700 }}>
@@ -376,6 +380,10 @@ export default function AdminDashboardPage() {
                   <Field label="ชื่อ" required><SI required value={editForm.first_name} onChange={e => setEditForm(p => ({ ...p, first_name: e.target.value }))} /></Field>
                   <Field label="นามสกุล" required><SI required value={editForm.last_name} onChange={e => setEditForm(p => ({ ...p, last_name: e.target.value }))} /></Field>
                 </div>
+                {/* ✅ ช่องแก้ไขตำแหน่ง */}
+                <Field label="ตำแหน่ง" hint="(เช่น แพทย์, พยาบาล, นักโภชนาการ)">
+                  <SI placeholder="ระบุตำแหน่ง" value={editForm.position} onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))} />
+                </Field>
                 <Field label="อีเมล" required>
                   <SI required type="email" placeholder="doctor@example.com" value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} />
                 </Field>
