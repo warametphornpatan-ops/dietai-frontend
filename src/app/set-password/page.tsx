@@ -78,7 +78,7 @@ export default function SetPasswordPage() {
       const { error: supabaseError } = await supabase.auth.updateUser({ password });
       if (supabaseError) throw new Error(`Supabase Auth: ${supabaseError.message}`);
 
-      const backendResponse = await fetch(`${BACKEND_URL}/doctors/sync-password`, {
+      const backendResponse = await fetch(`${BACKEND_URL}/admins/sync-password`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: doctorEmail, new_password: password }),
