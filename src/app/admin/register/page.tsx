@@ -135,7 +135,7 @@ export default function AdminRegisterPage() {
     setUsernameMessage("");
     try {
       // ✅ เปลี่ยน endpoint เป็น /doctors/check-username
-      const res = await fetch(`${API_URL}/doctors/check-username?username=${encodeURIComponent(user)}`);
+      const res = await fetch(`${API_URL}/admins/doctors/check-username?username=${encodeURIComponent(user)}`);
       const data = await safeParseJson(res);
 
       if (res.status === 404) {
