@@ -192,7 +192,7 @@ export default function AdminRegisterPage() {
         role: "doctor",
       };
 
-      const res = await fetch(`${API_URL}/doctors`, {
+      const res = await fetch(`${API_URL}/admins/doctors`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
       const body = await safeParseJson(res);
