@@ -345,7 +345,7 @@ export default function AdminRegisterPage() {
 
           {/* email */}
           <Field label="อีเมล" error={fieldErrors.email}>
-            <StyledInput type="email" inputMode="email" placeholder="admin@gmail.com"
+            <StyledInput type="email" inputMode="email" placeholder="test@gmail.com"
               value={form.email} hasError={!!fieldErrors.email} onChange={set("email")} />
           </Field>
 
