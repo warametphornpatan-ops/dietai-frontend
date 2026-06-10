@@ -324,7 +324,7 @@ export default function LoginPage() {
           </p>
           <p className="text-xs" style={{ color: '#6b9e84' }}>
             สำหรับเจ้าหน้าที่?{' '}
-            <Link href="/admin/register" className="font-medium hover:underline" style={{ color: '#16a360' }}>ลงทะเบียนผู้ดูแลระบบ</Link>
+            <Link href="/admin/register" className="font-medium hover:underline" style={{ color: '#16a360' }}>ลงทะเบียนบุคลากรทางการแพทย์</Link>
           </p>
           <p className="text-xs" style={{ color: '#6b9e84' }}>
             ลืมรหัสผ่าน?{' '}

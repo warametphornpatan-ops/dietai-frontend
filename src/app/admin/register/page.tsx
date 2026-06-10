@@ -12,12 +12,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 type AdminRegisterForm = {
   org_code: string; citizen_id: string; first_name: string; last_name: string;
-  email: string; username: string; password: string; confirm_password: string;
+  email: string; position: string; username: string; password: string; confirm_password: string;
 };
 
-type AdminRegisterPayload = {
+type DoctorRegisterPayload = {
   org_code: string; citizen_id: string; first_name: string; last_name: string;
-  email: string; username: string; password: string; role: "admin";
+  email: string; username: string; password: string;
+  position: string; role: "doctor";
 };
 
 type FastApiValidationErrorItem = { loc: Array<string | number>; msg: string; type: string };
@@ -82,7 +83,7 @@ export default function AdminRegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState<AdminRegisterForm>({
     org_code: "", citizen_id: "", first_name: "", last_name: "",
-    email: "", username: "", password: "", confirm_password: "",
+    email: "", position: "", username: "", password: "", confirm_password: "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -123,7 +124,6 @@ export default function AdminRegisterPage() {
     finally { setCheckingOrg(false); }
   }
 
-  // ✅ แก้ไขฟังก์ชันนี้: จัดการ 404 แยกออกมาเพื่อแสดงข้อความที่ถูกต้อง
   async function handleCheckUsername() {
     const user = form.username.trim();
     if (!user) {
@@ -134,11 +134,11 @@ export default function AdminRegisterPage() {
     setUsernameStatus("idle");
     setUsernameMessage("");
     try {
-      const res = await fetch(`${API_URL}/admins/check-username?username=${encodeURIComponent(user)}`);
+      // ✅ เปลี่ยน endpoint เป็น /doctors/check-username
+      const res = await fetch(`${API_URL}/doctors/check-username?username=${encodeURIComponent(user)}`);
       const data = await safeParseJson(res);
 
       if (res.status === 404) {
-        // 404 = username ถูกใช้ไปแล้ว (Backend ออกแบบมาแบบนี้)
         setUsernameStatus("error");
         setUsernameMessage("ชื่อผู้ใช้นี้มีในระบบแล้ว");
       } else if (res.ok && isObject(data) && data.is_available === true) {
@@ -172,6 +172,8 @@ export default function AdminRegisterPage() {
     if (!form.last_name.trim()) errs.last_name = "กรุณากรอกนามสกุล";
     if (!form.email.trim()) errs.email = "กรุณากรอกอีเมล";
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = "รูปแบบอีเมลไม่ถูกต้อง";
+    // ✅ เพิ่ม validate position
+    if (!form.position.trim()) errs.position = "กรุณากรอกตำแหน่ง";
     if (usernameStatus !== "success") errs.username = "กรุณาตรวจสอบชื่อผู้ใช้ก่อน";
     if (form.password.length < 6) errs.password = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
     if (form.password !== form.confirm_password) errs.confirm_password = "รหัสผ่านไม่ตรงกัน";
@@ -180,15 +182,17 @@ export default function AdminRegisterPage() {
 
     setLoading(true);
     try {
-      // ── Step 1: บันทึกข้อมูลแอดมินลง Backend ──
-      const payload: AdminRegisterPayload = {
+      // ✅ ใช้ DoctorRegisterPayload + endpoint /doctors
+      const payload: DoctorRegisterPayload = {
         org_code: form.org_code.trim(), citizen_id: digits,
         first_name: form.first_name.trim(), last_name: form.last_name.trim(),
         email: form.email.trim(), username: form.username.trim(),
-        password: form.password, role: "admin",
+        password: form.password,
+        position: form.position.trim(),
+        role: "doctor",
       };
 
-      const res = await fetch(`${API_URL}/admins/register`, {
+      const res = await fetch(`${API_URL}/doctors`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
       const body = await safeParseJson(res);
@@ -255,7 +259,7 @@ export default function AdminRegisterPage() {
       {/* back */}
       <div style={{ width: "100%", maxWidth: 440, paddingTop: 8, paddingBottom: 4, position: "relative", zIndex: 1 }}>
         <Link href="/login" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: "#6b9e84", textDecoration: "none" }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7" /></svg>
           กลับหน้าเข้าสู่ระบบ
         </Link>
       </div>
@@ -274,10 +278,11 @@ export default function AdminRegisterPage() {
         boxShadow: "0 20px 60px rgba(13,79,46,0.10),0 4px 16px rgba(13,79,46,0.06)",
         position: "relative", zIndex: 1,
       }}>
+        {/* ✅ เปลี่ยนหัวข้อและ badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
           <div style={{ width: 4, height: 22, borderRadius: 99, background: "linear-gradient(180deg,#16a360,#0d8a4f)" }} />
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0d4f2e" }}>ลงทะเบียนผู้ดูแลระบบ</h2>
-          <span style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px", borderRadius: 99, background: "rgba(22,163,96,0.1)", color: "#0d6e43", fontWeight: 600, letterSpacing: "0.05em" }}>ADMIN</span>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0d4f2e" }}>ลงทะเบียนบุคลากรทางการแพทย์</h2>
+          <span style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px", borderRadius: 99, background: "rgba(22,163,96,0.1)", color: "#0d6e43", fontWeight: 600, letterSpacing: "0.05em" }}>MEDICAL STAFF</span>
         </div>
 
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -293,10 +298,10 @@ export default function AdminRegisterPage() {
               />
               <button type="button" onClick={handleCheckOrg} disabled={checkingOrg || !form.org_code}
                 style={{
-                  padding: "0 16px", borderRadius: 12, 
+                  padding: "0 16px", borderRadius: 12,
                   border: orgStatus === "success" ? "1.5px solid #86efac" : "1.5px solid #fca5a5",
-                  background: orgStatus === "success" ? "#dcfce7" : "#fee2e2", 
-                  color: orgStatus === "success" ? "#16a360" : "#dc2626", 
+                  background: orgStatus === "success" ? "#dcfce7" : "#fee2e2",
+                  color: orgStatus === "success" ? "#16a360" : "#dc2626",
                   fontSize: 13, fontWeight: 600,
                   cursor: checkingOrg || !form.org_code ? "not-allowed" : "pointer",
                   opacity: checkingOrg || !form.org_code ? 0.5 : 1, whiteSpace: "nowrap", flexShrink: 0,
@@ -312,8 +317,8 @@ export default function AdminRegisterPage() {
                 border: `1px solid ${orgStatus === "success" ? "rgba(22,163,96,0.25)" : "rgba(239,68,68,0.2)"}`,
               }}>
                 {orgStatus === "success"
-                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a360" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a360" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
                 <span style={{ fontSize: 13, fontWeight: 500, color: orgStatus === "success" ? "#0d6e43" : "#dc2626" }}>{orgName}</span>
               </div>
             )}
@@ -344,6 +349,17 @@ export default function AdminRegisterPage() {
               value={form.email} hasError={!!fieldErrors.email} onChange={set("email")} />
           </Field>
 
+          {/* ✅ ตำแหน่ง */}
+          <Field label="ตำแหน่ง" error={fieldErrors.position}>
+            <StyledInput
+              type="text"
+              placeholder="เช่น แพทย์, พยาบาล, นักโภชนาการ"
+              value={form.position}
+              hasError={!!fieldErrors.position}
+              onChange={set("position")}
+            />
+          </Field>
+
           {/* username */}
           <Field label="ชื่อผู้ใช้" hint="(Username)" error={fieldErrors.username}>
             <div style={{ display: "flex", gap: 8 }}>
@@ -356,10 +372,10 @@ export default function AdminRegisterPage() {
               />
               <button type="button" onClick={handleCheckUsername} disabled={checkingUsername || !form.username}
                 style={{
-                  padding: "0 16px", borderRadius: 12, 
+                  padding: "0 16px", borderRadius: 12,
                   border: usernameStatus === "success" ? "1.5px solid #86efac" : "1.5px solid #fca5a5",
-                  background: usernameStatus === "success" ? "#dcfce7" : "#fee2e2", 
-                  color: usernameStatus === "success" ? "#16a360" : "#dc2626", 
+                  background: usernameStatus === "success" ? "#dcfce7" : "#fee2e2",
+                  color: usernameStatus === "success" ? "#16a360" : "#dc2626",
                   fontSize: 13, fontWeight: 600,
                   cursor: checkingUsername || !form.username ? "not-allowed" : "pointer",
                   opacity: checkingUsername || !form.username ? 0.5 : 1, whiteSpace: "nowrap", flexShrink: 0,
@@ -375,8 +391,8 @@ export default function AdminRegisterPage() {
                 border: `1px solid ${usernameStatus === "success" ? "rgba(22,163,96,0.25)" : "rgba(239,68,68,0.2)"}`,
               }}>
                 {usernameStatus === "success"
-                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a360" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a360" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
                 <span style={{ fontSize: 13, fontWeight: 500, color: usernameStatus === "success" ? "#0d6e43" : "#dc2626" }}>{usernameMessage}</span>
               </div>
             )}
@@ -396,8 +412,8 @@ export default function AdminRegisterPage() {
               <button type="button" onClick={() => setShowPw(p => !p)}
                 style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#6b9e84", padding: 4, display: "flex" }}>
                 {showPw
-                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>}
               </button>
             </div>
           </Field>
@@ -414,12 +430,12 @@ export default function AdminRegisterPage() {
               <button type="button" onClick={() => setShowConfirm(p => !p)}
                 style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#6b9e84", padding: 4, display: "flex" }}>
                 {showConfirm
-                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>}
               </button>
               {pwMatch && (
                 <span style={{ position: "absolute", right: 40, top: "50%", transform: "translateY(-50%)", color: "#16a360" }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                 </span>
               )}
             </div>
@@ -436,10 +452,10 @@ export default function AdminRegisterPage() {
             }}>
             {loading ? (
               <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <svg style={{ animation: "spin 1s linear infinite" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                <svg style={{ animation: "spin 1s linear infinite" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
                 กำลังลงทะเบียน...
               </span>
-            ) : "ลงทะเบียนแอดมิน"}
+            ) : "ลงทะเบียนบุคลากร"}
           </button>
         </form>
 
@@ -471,11 +487,11 @@ export default function AdminRegisterPage() {
             boxShadow: "0 20px 40px rgba(0,0,0,0.1)", textAlign: "center"
           }}>
             <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(22,163,96,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a360" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a360" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
             </div>
             <h3 style={{ margin: "0 0 8px", fontSize: 18, color: "#0d4f2e", fontWeight: 700 }}>ยืนยันอีเมลของคุณ</h3>
             <p style={{ margin: "0 0 20px", fontSize: 14, color: "#6b9e84", lineHeight: 1.6 }}>
-              ระบบได้ส่งรหัส OTP 6 หลักไปที่<br/>
+              ระบบได้ส่งรหัส OTP 6 หลักไปที่<br />
               <strong style={{ color: "#0d6e43" }}>{form.email}</strong>
             </p>
 
