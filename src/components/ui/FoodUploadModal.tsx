@@ -616,7 +616,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-slate-200 shadow-xl">
                           <SelectItem value="none" className="text-xs text-slate-500">
-                            -- ไม่รับไข่ --
+                            -- ไม่เลือกเมนูเพิ่มเติม --
                           </SelectItem>
                           {eggs.length > 0 ? (
                             eggs.map((egg) => (
