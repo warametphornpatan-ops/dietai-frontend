@@ -15,10 +15,16 @@ type StaffRow = {
   role: "admin" | "doctor";
 };
 
-// ✅ เอา password + confirm_password ออก
 type AdminForm = {
   first_name: string; last_name: string; citizen_id: string;
   username: string; email: string;
+};
+
+// ✅ Form สำหรับแก้ไข doctor
+type EditForm = {
+  first_name: string;
+  last_name: string;
+  email: string;
 };
 
 const inputBase: React.CSSProperties = {
@@ -65,11 +71,17 @@ export default function AdminDashboardPage() {
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "ok" | "error">("idle");
   const [usernameErrorDetail, setUsernameErrorDetail] = useState("");
 
-  // ✅ ไม่มี password แล้ว
   const [form, setForm] = useState<AdminForm>({
     first_name: "", last_name: "", citizen_id: "",
     username: "", email: "",
   });
+
+  // ✅ State สำหรับ Edit Modal
+  const [editingRow, setEditingRow] = useState<StaffRow | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({
+    first_name: "", last_name: "", email: "",
+  });
+  const [editLoading, setEditLoading] = useState(false);
 
   function getAuthHeaders(extraHeaders = {}) {
     const token = localStorage.getItem("token");
@@ -155,7 +167,6 @@ export default function AdminDashboardPage() {
     } finally { setCheckingUsername(false); }
   }
 
-  // ✅ ส่งแค่ข้อมูล ไม่มี password — backend จะส่ง invite email เอง
   async function handleAddAdmin(e: React.FormEvent) {
     e.preventDefault();
     const cd = form.citizen_id.replace(/\D/g, "");
@@ -186,6 +197,60 @@ export default function AdminDashboardPage() {
       fetchAllStaff(adminOrgCode);
     } catch { alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
     finally { setLoading(false); }
+  }
+
+  // ✅ เปิด Edit Modal
+  function handleOpenEdit(row: StaffRow) {
+    setEditingRow(row);
+    setEditForm({
+      first_name: row.first_name,
+      last_name: row.last_name,
+      email: row.email || "",
+    });
+  }
+
+  // ✅ ปิด Edit Modal
+  function handleCloseEdit() {
+    setEditingRow(null);
+    setEditForm({ first_name: "", last_name: "", email: "" });
+  }
+
+  // ✅ บันทึกการแก้ไข
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingRow) return;
+    if (!editForm.first_name.trim() || !editForm.last_name.trim() || !editForm.email.trim()) {
+      alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/admins/doctors/${editingRow.id}`, {
+        method: "PATCH",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          first_name: editForm.first_name.trim(),
+          last_name: editForm.last_name.trim(),
+          email: editForm.email.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const d = await res.json();
+        alert(d.detail || "แก้ไขข้อมูลไม่สำเร็จ");
+        return;
+      }
+
+      alert("✅ แก้ไขข้อมูลสำเร็จ");
+      handleCloseEdit();
+      fetchAllStaff(adminOrgCode);
+    } catch (e) {
+      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+      console.error(e);
+    } finally {
+      setEditLoading(false);
+    }
   }
 
   async function handleDelete(row: StaffRow) {
@@ -252,7 +317,6 @@ export default function AdminDashboardPage() {
                 <SI required maxLength={13} placeholder="13 หลัก" inputMode="numeric"
                   value={form.citizen_id} onChange={e => setForm(p => ({ ...p, citizen_id: e.target.value.replace(/\D/g, "") }))} />
               </Field>
-              {/* ✅ อีเมล — ระบบจะส่งลิงก์ตั้งรหัสผ่านไปที่นี่ */}
               <Field label="อีเมล" required hint="(ระบบจะส่งลิงก์ตั้งรหัสผ่านไปที่นี่)">
                 <SI required type="email" placeholder="admin@hospital.com" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
               </Field>
@@ -350,16 +414,22 @@ export default function AdminDashboardPage() {
                         <td style={{ padding: "10px 12px", color: "#64748b" }}>{row.username}</td>
                         <td style={{ padding: "10px 12px", color: "#94a3b8" }}>{row.email || "—"}</td>
                         <td style={{ padding: "10px 12px", textAlign: "center" }}>
-                          {isAdmin ? (
-                            <span style={{ fontSize: 11, color: "#cbd5e1" }}>—</span>
-                          ) : (
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                            {!isAdmin && (
+                              <button onClick={() => handleOpenEdit(row)}
+                                style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #bfdbfe", background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+                                onMouseEnter={e => e.currentTarget.style.background = "#dbeafe"}
+                                onMouseLeave={e => e.currentTarget.style.background = "#eff6ff"}>
+                                แก้ไข
+                              </button>
+                            )}
                             <button onClick={() => handleDelete(row)}
                               style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
                               onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
                               onMouseLeave={e => e.currentTarget.style.background = "#fef2f2"}>
                               ลบ
                             </button>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -370,6 +440,60 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ✅ Edit Modal Popup */}
+      {editingRow && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center",
+          justifyContent: "center", zIndex: 1000, padding: 20,
+        }}
+          onClick={handleCloseEdit}>
+          <div style={{
+            background: "#fff", borderRadius: 18, padding: 28, maxWidth: 400,
+            width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          }}
+            onClick={e => e.stopPropagation()}>
+            <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
+              แก้ไขข้อมูล {editingRow.first_name} {editingRow.last_name}
+            </h2>
+            <form onSubmit={handleSaveEdit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <Field label="ชื่อ" required>
+                <SI required placeholder="ชื่อ" value={editForm.first_name}
+                  onChange={e => setEditForm(p => ({ ...p, first_name: e.target.value }))} />
+              </Field>
+              <Field label="นามสกุล" required>
+                <SI required placeholder="นามสกุล" value={editForm.last_name}
+                  onChange={e => setEditForm(p => ({ ...p, last_name: e.target.value }))} />
+              </Field>
+              <Field label="อีเมล" required>
+                <SI required type="email" placeholder="email@example.com" value={editForm.email}
+                  onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} />
+              </Field>
+
+              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                <button type="submit" disabled={editLoading}
+                  style={{
+                    flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13,
+                    fontWeight: 600, color: "#fff", cursor: editLoading ? "not-allowed" : "pointer",
+                    background: editLoading ? "#93c5fd" : "#3b82f6", transition: "all 0.2s",
+                  }}>
+                  {editLoading ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
+                </button>
+                <button type="button" onClick={handleCloseEdit} disabled={editLoading}
+                  style={{
+                    flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                    fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc",
+                    cursor: editLoading ? "not-allowed" : "pointer", transition: "all 0.2s",
+                    opacity: editLoading ? 0.5 : 1,
+                  }}>
+                  ยกเลิก
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
