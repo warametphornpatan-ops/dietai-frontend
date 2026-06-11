@@ -24,6 +24,7 @@ type EditForm = {
   first_name: string;
   last_name: string;
   email: string;
+  position: string;
 };
 
 // ✅ Form สำหรับแก้ไข admin ตัวเอง
@@ -85,7 +86,7 @@ export default function AdminDashboardPage() {
 
   const [editingRow, setEditingRow] = useState<StaffRow | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
-    first_name: "", last_name: "", email: "",
+    first_name: "", last_name: "", email: "", position: "",
   });
   const [editLoading, setEditLoading] = useState(false);
 
@@ -224,12 +225,13 @@ export default function AdminDashboardPage() {
       first_name: row.first_name,
       last_name: row.last_name,
       email: row.email || "",
+      position: row.position || "",
     });
   }
 
   function handleCloseEdit() {
     setEditingRow(null);
-    setEditForm({ first_name: "", last_name: "", email: "" });
+    setEditForm({ first_name: "", last_name: "", email: "", position: "" });
   }
 
   async function handleSaveEdit(e: React.FormEvent) {
@@ -251,7 +253,7 @@ export default function AdminDashboardPage() {
           last_name: editForm.last_name.trim(),
           email: editForm.email.trim(),
           username: editingRow.username,
-          position: editingRow.position,
+          position: editForm.position.trim(),
         }),
       });
 
@@ -544,6 +546,10 @@ export default function AdminDashboardPage() {
               <Field label="อีเมล" required>
                 <SI required type="email" placeholder="email@example.com" value={editForm.email}
                   onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} />
+              </Field>
+              <Field label="ตำแหน่ง">
+                <SI placeholder="เช่น แพทย์ทั่วไป" value={editForm.position}
+                  onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))} />
               </Field>
 
               <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
