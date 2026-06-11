@@ -151,11 +151,20 @@ export default function FoodUploadModal({ open, onClose }: Props) {
         .catch(console.error);
     }
 
-    // ✅ Fetch ข้อมูลไข่จากฐานข้อมูล
+    // ✅ Fetch ข้อมูลไข่จากฐานข้อมูล (โดย MenuID)
     if (eggs.length === 0) {
-      fetch("/api/foods?category=ไข่")
-        .then((r) => (r.ok ? r.json() : []))
-        .then((data: ThaiFoodMenu[]) => setEggs(data))
+      const eggMenuIds = [68, 113, 114]; // MenuID ของไข่ 3 แบบ
+      Promise.all(
+        eggMenuIds.map((id) =>
+          fetch(`/api/foods?menuId=${id}`)
+            .then((r) => (r.ok ? r.json() : []))
+            .catch(() => [])
+        )
+      )
+        .then((results) => {
+          const allEggs = results.flat().filter((e: ThaiFoodMenu) => e?.MenuID);
+          setEggs(allEggs);
+        })
         .catch(console.error);
     }
 
@@ -607,7 +616,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-slate-200 shadow-xl">
                           <SelectItem value="none" className="text-xs text-slate-500">
-                            -- เลือกเพิ่มเติม --
+                            -- ไม่รับไข่ --
                           </SelectItem>
                           {eggs.length > 0 ? (
                             eggs.map((egg) => (
