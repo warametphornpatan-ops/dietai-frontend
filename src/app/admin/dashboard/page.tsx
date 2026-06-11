@@ -20,8 +20,14 @@ type AdminForm = {
   username: string; email: string;
 };
 
-// ✅ Form สำหรับแก้ไข doctor
 type EditForm = {
+  first_name: string;
+  last_name: string;
+  email: string;
+};
+
+// ✅ Form สำหรับแก้ไข admin ตัวเอง
+type AdminProfileForm = {
   first_name: string;
   last_name: string;
   email: string;
@@ -66,6 +72,7 @@ export default function AdminDashboardPage() {
   const [adminOrgCode, setAdminOrgCode] = useState<string>("");
   const [adminOrgName, setAdminOrgName] = useState<string>("");
   const [adminName, setAdminName] = useState<string>("");
+  const [adminId, setAdminId] = useState<string>("");
 
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "ok" | "error">("idle");
@@ -76,12 +83,18 @@ export default function AdminDashboardPage() {
     username: "", email: "",
   });
 
-  // ✅ State สำหรับ Edit Modal
   const [editingRow, setEditingRow] = useState<StaffRow | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
     first_name: "", last_name: "", email: "",
   });
   const [editLoading, setEditLoading] = useState(false);
+
+  // ✅ State สำหรับแก้ไข Admin Profile (ตัวเอง)
+  const [showAdminProfileModal, setShowAdminProfileModal] = useState(false);
+  const [adminProfileForm, setAdminProfileForm] = useState<AdminProfileForm>({
+    first_name: "", last_name: "", email: "",
+  });
+  const [adminProfileLoading, setAdminProfileLoading] = useState(false);
 
   function getAuthHeaders(extraHeaders = {}) {
     const token = localStorage.getItem("token");
@@ -95,8 +108,14 @@ export default function AdminDashboardPage() {
       const res = await fetch(`${API_URL}/auth/me`, { headers: getAuthHeaders() });
       if (res.ok) {
         const adminData = await res.json();
+        setAdminId(adminData.admin_id || adminData.id);
         setAdminName(`${adminData.first_name} ${adminData.last_name}`);
         setAdminOrgCode(adminData.org_code);
+        setAdminProfileForm({
+          first_name: adminData.first_name,
+          last_name: adminData.last_name,
+          email: adminData.email || "",
+        });
         if (adminData.org_code) {
           fetchOrgName(adminData.org_code);
           fetchAllStaff(adminData.org_code);
@@ -199,7 +218,6 @@ export default function AdminDashboardPage() {
     finally { setLoading(false); }
   }
 
-  // ✅ เปิด Edit Modal
   function handleOpenEdit(row: StaffRow) {
     setEditingRow(row);
     setEditForm({
@@ -209,13 +227,11 @@ export default function AdminDashboardPage() {
     });
   }
 
-  // ✅ ปิด Edit Modal
   function handleCloseEdit() {
     setEditingRow(null);
     setEditForm({ first_name: "", last_name: "", email: "" });
   }
 
-  // ✅ บันทึกการแก้ไข
   async function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editingRow) return;
@@ -227,12 +243,15 @@ export default function AdminDashboardPage() {
     setEditLoading(true);
     try {
       const res = await fetch(`${API_URL}/admins/doctors/${editingRow.id}`, {
-        method: "PATCH",
+        method: "PUT",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
+          org_code: adminOrgCode,
           first_name: editForm.first_name.trim(),
           last_name: editForm.last_name.trim(),
           email: editForm.email.trim(),
+          username: editingRow.username,
+          position: editingRow.position,
         }),
       });
 
@@ -250,6 +269,53 @@ export default function AdminDashboardPage() {
       console.error(e);
     } finally {
       setEditLoading(false);
+    }
+  }
+
+  // ✅ เปิด Admin Profile Modal
+  function handleOpenAdminProfile() {
+    setShowAdminProfileModal(true);
+  }
+
+  // ✅ ปิด Admin Profile Modal
+  function handleCloseAdminProfile() {
+    setShowAdminProfileModal(false);
+  }
+
+  // ✅ บันทึกข้อมูล Admin Profile
+  async function handleSaveAdminProfile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!adminProfileForm.first_name.trim() || !adminProfileForm.last_name.trim() || !adminProfileForm.email.trim()) {
+      alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+      return;
+    }
+
+    setAdminProfileLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/admins/${adminId}`, {
+        method: "PATCH",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          first_name: adminProfileForm.first_name.trim(),
+          last_name: adminProfileForm.last_name.trim(),
+          email: adminProfileForm.email.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const d = await res.json();
+        alert(d.detail || "แก้ไขข้อมูลไม่สำเร็จ");
+        return;
+      }
+
+      alert("✅ แก้ไขข้อมูลสำเร็จ");
+      setAdminName(`${adminProfileForm.first_name} ${adminProfileForm.last_name}`);
+      handleCloseAdminProfile();
+    } catch (e) {
+      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+      console.error(e);
+    } finally {
+      setAdminProfileLoading(false);
     }
   }
 
@@ -290,13 +356,26 @@ export default function AdminDashboardPage() {
               </p>
             </div>
           </div>
-          <button onClick={() => { localStorage.removeItem("token"); window.location.href = "/login"; }}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#fca5a5"; e.currentTarget.style.color = "#ef4444"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
-            ออกจากระบบ
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* ✅ ปุ่มฟันเฟือง (Settings) */}
+            <button onClick={handleOpenAdminProfile}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: 40, height: 40, borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.color = "#3b82f6"; e.currentTarget.style.background = "#eff6ff"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; e.currentTarget.style.background = "#fff"; }}
+              title="แก้ไขข้อมูลส่วนตัว">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m5.08-5.08l4.24-4.24" />
+              </svg>
+            </button>
+            <button onClick={() => { localStorage.removeItem("token"); window.location.href = "/login"; }}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#fca5a5"; e.currentTarget.style.color = "#ef4444"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+              ออกจากระบบ
+            </button>
+          </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 20, alignItems: "start" }}>
@@ -441,7 +520,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* ✅ Edit Modal Popup */}
+      {/* ✅ Edit Doctor Modal */}
       {editingRow && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
@@ -486,6 +565,60 @@ export default function AdminDashboardPage() {
                     fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc",
                     cursor: editLoading ? "not-allowed" : "pointer", transition: "all 0.2s",
                     opacity: editLoading ? 0.5 : 1,
+                  }}>
+                  ยกเลิก
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Edit Admin Profile Modal */}
+      {showAdminProfileModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center",
+          justifyContent: "center", zIndex: 1000, padding: 20,
+        }}
+          onClick={handleCloseAdminProfile}>
+          <div style={{
+            background: "#fff", borderRadius: 18, padding: 28, maxWidth: 400,
+            width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          }}
+            onClick={e => e.stopPropagation()}>
+            <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
+              แก้ไขข้อมูลส่วนตัว
+            </h2>
+            <form onSubmit={handleSaveAdminProfile} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <Field label="ชื่อ" required>
+                <SI required placeholder="ชื่อ" value={adminProfileForm.first_name}
+                  onChange={e => setAdminProfileForm(p => ({ ...p, first_name: e.target.value }))} />
+              </Field>
+              <Field label="นามสกุล" required>
+                <SI required placeholder="นามสกุล" value={adminProfileForm.last_name}
+                  onChange={e => setAdminProfileForm(p => ({ ...p, last_name: e.target.value }))} />
+              </Field>
+              <Field label="อีเมล" required>
+                <SI required type="email" placeholder="email@example.com" value={adminProfileForm.email}
+                  onChange={e => setAdminProfileForm(p => ({ ...p, email: e.target.value }))} />
+              </Field>
+
+              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                <button type="submit" disabled={adminProfileLoading}
+                  style={{
+                    flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13,
+                    fontWeight: 600, color: "#fff", cursor: adminProfileLoading ? "not-allowed" : "pointer",
+                    background: adminProfileLoading ? "#93c5fd" : "#3b82f6", transition: "all 0.2s",
+                  }}>
+                  {adminProfileLoading ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
+                </button>
+                <button type="button" onClick={handleCloseAdminProfile} disabled={adminProfileLoading}
+                  style={{
+                    flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                    fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc",
+                    cursor: adminProfileLoading ? "not-allowed" : "pointer", transition: "all 0.2s",
+                    opacity: adminProfileLoading ? 0.5 : 1,
                   }}>
                   ยกเลิก
                 </button>
