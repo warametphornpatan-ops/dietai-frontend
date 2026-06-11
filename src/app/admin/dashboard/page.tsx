@@ -364,8 +364,8 @@ export default function AdminDashboardPage() {
               onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; e.currentTarget.style.background = "#fff"; }}
               title="แก้ไขข้อมูลส่วนตัว">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m5.08-5.08l4.24-4.24" />
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12.22 2h-0.44a1 1 0 0 0-1 1v2.4a2 2 0 0 1-1.35 1.87 2 2 0 0 1-2.3-.5L6.75 5.55a1 1 0 0 0-1.44 0l-.3.29a1 1 0 0 0 0 1.44l1.82 1.82a2 2 0 0 1 .5 2.3 2 2 0 0 1-1.87 1.35H3a1 1 0 0 0-1 1v0.44a1 1 0 0 0 1 1h2.4a2 2 0 0 1 1.87 1.35 2 2 0 0 1-.5 2.3l-1.82 1.82a1 1 0 0 0 0 1.44l0.29 0.29a1 1 0 0 0 1.44 0l1.82-1.82a2 2 0 0 1 2.3-.5 2 2 0 0 1 1.35 1.87v2.4a1 1 0 0 0 1 1h0.44a1 1 0 0 0 1-1v-2.4a2 2 0 0 1 1.35-1.87 2 2 0 0 1 2.3.5l1.82 1.82a1 1 0 0 0 1.44 0l0.29-0.29a1 1 0 0 0 0-1.44l-1.82-1.82a2 2 0 0 1-.5-2.3 2 2 0 0 1 1.87-1.35h2.4a1 1 0 0 0 1-1v-0.44a1 1 0 0 0-1-1h-2.4a2 2 0 0 1-1.87-1.35 2 2 0 0 1 .5-2.3l1.82-1.82a1 1 0 0 0 0-1.44l-0.29-0.29a1 1 0 0 0-1.44 0l-1.82 1.82a2 2 0 0 1-2.3.5 2 2 0 0 1-1.35-1.87V3a1 1 0 0 0-1-1Z"></path>
               </svg>
             </button>
             <button onClick={() => { localStorage.removeItem("token"); window.location.href = "/login"; }}
@@ -447,8 +447,8 @@ export default function AdminDashboardPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1.5px solid #e2e8f0" }}>
-                    {["#", "ชื่อ-นามสกุล", "ตำแหน่ง", "Username", "อีเมล", "จัดการ"].map((h, i) => (
-                      <th key={h} style={{ padding: "10px 12px", textAlign: i === 0 || i === 5 ? "center" : "left", fontWeight: 600, color: "#475569", whiteSpace: "nowrap", fontSize: 12 }}>{h}</th>
+                    {["#", "ชื่อ-นามสกุล", "ตำแหน่ง", "อีเมล", "จัดการ"].map((h, i) => (
+                      <th key={h} style={{ padding: "10px 12px", textAlign: i === 0 || i === 4 ? "center" : "left", fontWeight: 600, color: "#475569", whiteSpace: "nowrap", fontSize: 12 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -490,7 +490,6 @@ export default function AdminDashboardPage() {
                             <span style={{ color: "#cbd5e1", fontSize: 12 }}>—</span>
                           )}
                         </td>
-                        <td style={{ padding: "10px 12px", color: "#64748b" }}>{row.username}</td>
                         <td style={{ padding: "10px 12px", color: "#94a3b8" }}>{row.email || "—"}</td>
                         <td style={{ padding: "10px 12px", textAlign: "center" }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
