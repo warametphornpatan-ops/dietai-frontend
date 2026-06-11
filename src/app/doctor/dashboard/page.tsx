@@ -15,7 +15,7 @@ type HealthRecord = {
   createdAt: string
 };
 type Patient = {
-  id?: string; userId?: string; firstName: string; lastName: string;
+  id?: string; userId?: string; citizenId?: string; firstName: string; lastName: string;
   heightCm: number; weightKg: number; bmi: number;
   targetCalories: number; targetCarbs: number;
   dailyNutrition: DailyNutrition[]; foodLogs?: FoodLog[]; healthRecords?: HealthRecord[];
@@ -26,6 +26,7 @@ type DoctorProfile = {
   hospitalName: string;
   firstName: string;
   lastName: string;
+  position: string;
   doctorId: string;
   orgCode: string;
 };
@@ -88,6 +89,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 
 export default function DoctorDashboard() {
   const router = useRouter();
+  const [searchType, setSearchType] = useState<"name" | "citizen">("name");
   const [keyword, setKeyword] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selected, setSelected] = useState<Patient | null>(null);
@@ -123,12 +125,14 @@ export default function DoctorDashboard() {
       const firstName = (decoded.first_name || decoded.firstName || "แพทย์") as string;
       const lastName = (decoded.last_name || decoded.lastName || "") as string;
       const orgCode = (decoded.org_code || decoded.orgCode || "") as string;
+      const position = (decoded.position || "") as string;
       const username = (decoded.username || decoded.sub || "") as string;
 
       setDoctorProfile({
         hospitalName: "กำลังโหลดข้อมูลสถานพยาบาล...",
         firstName: firstName,
         lastName: lastName,
+        position: position,
         doctorId: username,
         orgCode: orgCode
       });
@@ -150,10 +154,14 @@ export default function DoctorDashboard() {
     }
   }, [router]);
 
-  const loadPatients = useCallback(async (kw: string) => {
+  const loadPatients = useCallback(async (kw: string, type: "name" | "citizen") => {
     if (!kw.trim()) { setPatients([]); return; }
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/doctors/patients?name=${encodeURIComponent(kw)}`);
+      const url = type === "name" 
+        ? `${process.env.NEXT_PUBLIC_API_URL}/doctors/patients?name=${encodeURIComponent(kw)}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/doctors/patients?citizenId=${encodeURIComponent(kw)}`;
+      
+      const res = await fetch(url);
       const data = await res.json();
       if (Array.isArray(data)) {
         setPatients(data);
@@ -166,7 +174,7 @@ export default function DoctorDashboard() {
     } catch { setPatients([]); }
   }, []);
 
-  useEffect(() => { loadPatients(keyword); }, [keyword, loadPatients]);
+  useEffect(() => { loadPatients(keyword, searchType); }, [keyword, searchType, loadPatients]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,7 +190,7 @@ export default function DoctorDashboard() {
       if (res.ok) {
         alert("บันทึกคำแนะนำเรียบร้อยแล้ว!");
         setSystolicInput(""); setDiastolicInput(""); setPulseInput(""); setRecInput("");
-        loadPatients(keyword);
+        loadPatients(keyword, searchType);
       } else alert("เกิดข้อผิดพลาดในการบันทึก");
     } catch { alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
     finally { setIsSubmitting(false); }
@@ -194,10 +202,12 @@ export default function DoctorDashboard() {
     if (!s) return [];
     (Array.isArray(patients) ? patients : []).forEach(p => {
       const id = p.id || p.userId || Math.random().toString();
-      if ((p.firstName || "").toLowerCase().includes(s) || (p.lastName || "").toLowerCase().includes(s)) map.set(id, p);
+      const matchName = (p.firstName || "").toLowerCase().includes(s) || (p.lastName || "").toLowerCase().includes(s);
+      const matchCitizen = searchType === "citizen" && (p.citizenId || "").includes(s);
+      if (matchName || matchCitizen) map.set(id, p);
     });
     return Array.from(map.values());
-  }, [keyword, patients]);
+  }, [keyword, patients, searchType]);
 
   const bmiColor = (bmi: number) => bmi > 25 ? T.rose : bmi > 23 ? T.amber : T.green;
   const bmiLabel = (bmi: number) => bmi > 25 ? "น้ำหนักเกิน" : bmi > 23 ? "ค่อนข้างเกิน" : "ปกติ";
@@ -208,11 +218,11 @@ export default function DoctorDashboard() {
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: T.white, padding: "16px 20px", borderRadius: 16, border: `1px solid ${T.border}`, boxShadow: T.shadow, flexWrap: "wrap", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 300 }}>
             <div style={{ width: 50, height: 50, borderRadius: 14, background: T.accent, display: "flex", alignItems: "center", color: T.white, boxShadow: "0 2px 10px rgba(37,99,235,0.2)", flexShrink: 0, justifyContent: "center" }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 2a2 2 0 0 0-2 2v5H4a2 2 0 0 0-2 2v2c0 1.1.9 2 2 2h5v5c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2v-5h5a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-5V4a2 2 0 0 0-2-2h-2z" /></svg>
             </div>
-            <div>
+            <div style={{ flex: 1 }}>
               <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.text }}>
                 {doctorProfile?.hospitalName}
               </h1>
@@ -220,13 +230,14 @@ export default function DoctorDashboard() {
                 แพทย์: <span style={{ color: T.accent, fontWeight: 600 }}>
                   {doctorProfile?.firstName} {doctorProfile?.lastName}
                 </span>
-                {doctorProfile?.orgCode && ` (รหัสหน่วยงาน: ${doctorProfile.orgCode})`}
+                {doctorProfile?.position && ` · ${doctorProfile.position}`}
+                {doctorProfile?.orgCode && ` (รหัส: ${doctorProfile.orgCode})`}
               </p>
             </div>
           </div>
           <button onClick={handleLogout}
             suppressHydrationWarning
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 9, border: `1.5px solid ${T.border}`, background: T.white, color: T.textSub, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.15s" }}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 9, border: `1.5px solid ${T.border}`, background: T.white, color: T.textSub, fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.15s", flexShrink: 0 }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#fca5a5"; e.currentTarget.style.color = T.rose; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textSub; }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
@@ -236,13 +247,35 @@ export default function DoctorDashboard() {
 
         {/* Search — ซ่อนเมื่อเลือกคนไข้แล้ว */}
         {!selected && (
-          <div style={{ position: "relative" }}>
-            <svg style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: T.textMuted }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-            <input placeholder="ค้นหาชื่อผู้ป่วย..." value={keyword} onChange={e => setKeyword(e.target.value)}
-              suppressHydrationWarning={true}
-              style={{ ...inputSt, paddingLeft: 38, fontSize: 14, padding: "13px 14px 13px 38px", borderRadius: 13, background: T.white, boxShadow: T.shadow }}
-              onFocus={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.background = T.white; }}
-              onBlur={e => { e.currentTarget.style.borderColor = T.border; }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Tab Selection */}
+            <div style={{ display: "flex", gap: 8, borderBottom: `1.5px solid ${T.border}`, paddingBottom: 12 }}>
+              {[
+                { key: "name" as const, label: "ค้นหาด้วยชื่อ" },
+                { key: "citizen" as const, label: "ค้นหาด้วยเลขบัตรประชาชน" }
+              ].map(tab => (
+                <button key={tab.key} onClick={() => { setSearchType(tab.key); setKeyword(""); }}
+                  style={{
+                    padding: "8px 16px", borderRadius: 8, border: "none", background: "transparent",
+                    fontSize: 13, fontWeight: searchType === tab.key ? 700 : 500,
+                    color: searchType === tab.key ? T.accent : T.textSub,
+                    borderBottom: searchType === tab.key ? `2px solid ${T.accent}` : "none",
+                    cursor: "pointer", transition: "all 0.15s"
+                  }}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Input */}
+            <div style={{ position: "relative" }}>
+              <svg style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: T.textMuted }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+              <input placeholder={searchType === "name" ? "ค้นหาชื่อผู้ป่วย..." : "กรอกเลขบัตรประชาชน 13 หลัก..."} value={keyword} onChange={e => setKeyword(e.target.value)}
+                suppressHydrationWarning={true}
+                style={{ ...inputSt, paddingLeft: 38, fontSize: 14, padding: "13px 14px 13px 38px", borderRadius: 13, background: T.white, boxShadow: T.shadow }}
+                onFocus={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.background = T.white; }}
+                onBlur={e => { e.currentTarget.style.borderColor = T.border; }} />
+            </div>
           </div>
         )}
 
@@ -262,7 +295,9 @@ export default function DoctorDashboard() {
                     </div>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 14, color: T.text }}>{p.firstName} {p.lastName}</div>
-                      <div style={{ fontSize: 11, color: T.textMuted }}>รหัส: {uid.substring(0, 8)}...</div>
+                      <div style={{ fontSize: 11, color: T.textMuted }}>
+                        {searchType === "citizen" ? `บัตร: ${p.citizenId}` : `รหัส: ${uid.substring(0, 8)}...`}
+                      </div>
                     </div>
                   </div>
                   <span style={{ fontSize: 12, fontWeight: 600, color: T.accent, background: T.accentLight, border: `1px solid ${T.accentBorder}`, padding: "3px 10px", borderRadius: 99 }}>ดูประวัติ</span>
