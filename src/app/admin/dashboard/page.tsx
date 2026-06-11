@@ -359,14 +359,11 @@ export default function AdminDashboardPage() {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {/* ✅ ปุ่มฟันเฟือง (Settings) */}
             <button onClick={handleOpenAdminProfile}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: 40, height: 40, borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: 40, height: 40, borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 18, fontWeight: 500, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.color = "#3b82f6"; e.currentTarget.style.background = "#eff6ff"; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#64748b"; e.currentTarget.style.background = "#fff"; }}
               title="แก้ไขข้อมูลส่วนตัว">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M12.22 2h-0.44a1 1 0 0 0-1 1v2.4a2 2 0 0 1-1.35 1.87 2 2 0 0 1-2.3-.5L6.75 5.55a1 1 0 0 0-1.44 0l-.3.29a1 1 0 0 0 0 1.44l1.82 1.82a2 2 0 0 1 .5 2.3 2 2 0 0 1-1.87 1.35H3a1 1 0 0 0-1 1v0.44a1 1 0 0 0 1 1h2.4a2 2 0 0 1 1.87 1.35 2 2 0 0 1-.5 2.3l-1.82 1.82a1 1 0 0 0 0 1.44l0.29 0.29a1 1 0 0 0 1.44 0l1.82-1.82a2 2 0 0 1 2.3-.5 2 2 0 0 1 1.35 1.87v2.4a1 1 0 0 0 1 1h0.44a1 1 0 0 0 1-1v-2.4a2 2 0 0 1 1.35-1.87 2 2 0 0 1 2.3.5l1.82 1.82a1 1 0 0 0 1.44 0l0.29-0.29a1 1 0 0 0 0-1.44l-1.82-1.82a2 2 0 0 1-.5-2.3 2 2 0 0 1 1.87-1.35h2.4a1 1 0 0 0 1-1v-0.44a1 1 0 0 0-1-1h-2.4a2 2 0 0 1-1.87-1.35 2 2 0 0 1 .5-2.3l1.82-1.82a1 1 0 0 0 0-1.44l-0.29-0.29a1 1 0 0 0-1.44 0l-1.82 1.82a2 2 0 0 1-2.3.5 2 2 0 0 1-1.35-1.87V3a1 1 0 0 0-1-1Z"></path>
-              </svg>
+              ⚙️
             </button>
             <button onClick={() => { localStorage.removeItem("token"); window.location.href = "/login"; }}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
