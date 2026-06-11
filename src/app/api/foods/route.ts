@@ -4,12 +4,16 @@ const BACKEND = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const menuId = searchParams.get("menuId");
   const category = searchParams.get("category");
   const aiName = searchParams.get("aiName");
 
   let url = "";
 
-  if (aiName) {
+  // ✅ เพิ่มการตรวจสอบ menuId
+  if (menuId) {
+    url = `${BACKEND}/foods?menuId=${encodeURIComponent(menuId)}`;
+  } else if (aiName) {
     url = `${BACKEND}/foods/search?name=${encodeURIComponent(aiName)}`;
   } else if (category) {
     url = `${BACKEND}/foods/by-category?category=${encodeURIComponent(category)}`;
