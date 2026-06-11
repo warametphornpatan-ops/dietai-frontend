@@ -26,6 +26,7 @@ import {
   AlertCircle,
   CupSoda,
   UtensilsCrossed,
+  Egg,
 } from "lucide-react";
 
 // ----------------------------------------------------------------------
@@ -116,7 +117,6 @@ function setCurrentUserNutrition(cal: number, carb: number) {
 export default function FoodUploadModal({ open, onClose }: Props) {
   const [mode, setMode] = useState<Mode>("menu");
   const [imageURL, setImageURL] = useState<string>("");
-  // [CHANGED 1] เพิ่ม state เก็บ File จริงแทน blob URL
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const [detectedFood, setDetectedFood] = useState<ThaiFoodMenu | null>(null);
@@ -131,6 +131,10 @@ export default function FoodUploadModal({ open, onClose }: Props) {
   const [selectedDrink, setSelectedDrink] = useState<string>("none");
   const [drinkVolume, setDrinkVolume] = useState<number>(200);
 
+  // ✅ เพิ่ม state สำหรับไข่ (fetch จากฐานข้อมูล)
+  const [eggs, setEggs] = useState<ThaiFoodMenu[]>([]);
+  const [selectedEgg, setSelectedEgg] = useState<string>("none");
+
   const [saveLoading, setSaveLoading] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -144,6 +148,14 @@ export default function FoodUploadModal({ open, onClose }: Props) {
       fetch("/api/foods?category=เครื่องดื่ม")
         .then((r) => (r.ok ? r.json() : []))
         .then((data: ThaiFoodMenu[]) => setBeverages(data))
+        .catch(console.error);
+    }
+
+    // ✅ Fetch ข้อมูลไข่จากฐานข้อมูล
+    if (eggs.length === 0) {
+      fetch("/api/foods?category=ไข่")
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data: ThaiFoodMenu[]) => setEggs(data))
         .catch(console.error);
     }
 
@@ -162,14 +174,13 @@ export default function FoodUploadModal({ open, onClose }: Props) {
         })
         .catch(console.error);
     }
-  }, [open, beverages.length, foodMenus.length]);
+  }, [open, beverages.length, foodMenus.length, eggs.length]);
 
   // ─── reset เมื่อปิด ───
   useEffect(() => {
     if (!open) {
       setMode("menu");
       setImageURL("");
-      // [CHANGED 1] reset imageFile ด้วย
       setImageFile(null);
       setDetectedFood(null);
       setDetectStatus("idle");
@@ -177,6 +188,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
       setSelectedFood("none");
       setSelectedDrink("none");
       setDrinkVolume(200);
+      setSelectedEgg("none");
       setSaveLoading(false);
     }
   }, [open]);
@@ -194,6 +206,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     setSelectedFood("none");
     setSelectedDrink("none");
     setDrinkVolume(200);
+    setSelectedEgg("none");
     setMode("preview");
 
     try {
@@ -218,7 +231,6 @@ export default function FoodUploadModal({ open, onClose }: Props) {
         );
       }
 
-      // [CHANGED 1] เก็บ File จริงไว้ใช้ตอน upload, blob URL ใช้แค่แสดง preview
       setImageFile(file);
       setImageURL(URL.createObjectURL(file));
     } catch {
@@ -270,7 +282,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
         `/api/foods?aiName=${encodeURIComponent(targetName)}`
       );
       if (!dbRes.ok) {
-        setDetectError("เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาเลือกเมนูด้วยตนเอง");
+        setDetectError("ไม่พบข้อมูลอาหาร กรุณาเลือกเมนูด้วยตนเอง");
         setDetectStatus("failed");
         return;
       }
@@ -280,7 +292,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
 
       if (!matchedFood?.Nutrition) {
         setDetectError(
-          `ตรวจเจอ "${targetName}" แต่ไม่มีข้อมูลโภชนาการ กรุณาเลือกเมนูด้วยตนเอง`
+          "ไม่พบอาหารในรูป กรุณาเลือกเมนูด้วยตนเอง"
         );
         setDetectStatus("failed");
         return;
@@ -298,7 +310,6 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     }
   };
 
-  // [CHANGED 2] uploadImageToServer รับ File โดยตรง ไม่ต้อง fetch blob URL อีกต่อไป
   async function uploadImageToServer(file: File) {
     const form = new FormData();
     form.append("file", file, "food.jpg");
@@ -319,7 +330,6 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     return data as { url?: string };
   }
 
-  // [CHANGED 3] saveNutrition รับ File | null แทน dataURL
   async function saveNutrition(
     file: File | null,
     nutToAdd: { menu: string; cal: number; carb: number; protein: number; fat: number }
@@ -395,10 +405,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     }
   }
 
-  // ----------------------------------------------------------------------
-  // คำนวณโภชนาการรวม
-  // ใช้ selectedFood ก่อน (ทั้ง matched และ failed) ถ้าไม่ได้เลือก fallback เป็น detectedFood
-  // ----------------------------------------------------------------------
+  // ✅ คำนวณ nutrition รวมทั้งไข่
   const activeFoodData: ThaiFoodMenu | null =
     selectedFood !== "none"
       ? foodMenus.find((f) => f.MenuID.toString() === selectedFood) ?? null
@@ -414,15 +421,51 @@ export default function FoodUploadModal({ open, onClose }: Props) {
   const drinkBaseCal = drinkData?.Calories ?? 0;
   const drinkMul = selectedDrink === "none" ? 0 : drinkVolume / 100;
 
-  const totalCal     = activeFoodData ? Math.round(foodBaseCal + drinkBaseCal * drinkMul) : 0;
-  const totalCarb    = activeFoodData ? Number((foodNut.carbohydrates + drinkNut.carbohydrates * drinkMul).toFixed(1)) : 0;
-  const totalProtein = activeFoodData ? Number((foodNut.protein + drinkNut.protein * drinkMul).toFixed(1)) : 0;
-  const totalFat     = activeFoodData ? Number((foodNut.fat + drinkNut.fat * drinkMul).toFixed(1)) : 0;
+  // ✅ คำนวณ nutrition จากไข่
+  const eggData = eggs.find((e) => e.MenuID.toString() === selectedEgg) ?? null;
+  const eggNut = eggData?.Nutrition ?? { carbohydrates: 0, protein: 0, fat: 0 };
+  const eggBaseCal = eggData?.Calories ?? 0;
 
+  // ✅ รวม nutrition ทั้งหมด
+  const totalCal =
+    activeFoodData ? Math.round(foodBaseCal + drinkBaseCal * drinkMul + (selectedEgg !== "none" ? eggBaseCal : 0)) : 0;
+  const totalCarb = activeFoodData
+    ? Number(
+        (
+          foodNut.carbohydrates +
+          drinkNut.carbohydrates * drinkMul +
+          (selectedEgg !== "none" ? eggNut.carbohydrates : 0)
+        ).toFixed(1)
+      )
+    : 0;
+  const totalProtein = activeFoodData
+    ? Number(
+        (
+          foodNut.protein +
+          drinkNut.protein * drinkMul +
+          (selectedEgg !== "none" ? eggNut.protein : 0)
+        ).toFixed(1)
+      )
+    : 0;
+  const totalFat = activeFoodData
+    ? Number(
+        (
+          foodNut.fat +
+          drinkNut.fat * drinkMul +
+          (selectedEgg !== "none" ? eggNut.fat : 0)
+        ).toFixed(1)
+      )
+    : 0;
+
+  // ✅ สร้างชื่อเมนูรวมทั้งไข่
   const finalMenuName = activeFoodData
-    ? selectedDrink === "none"
-      ? activeFoodData.ThaiName
-      : `${activeFoodData.ThaiName} + ${drinkData?.ThaiName} (${drinkVolume}ml)`
+    ? [
+        activeFoodData.ThaiName,
+        selectedDrink !== "none" ? `${drinkData?.ThaiName} (${drinkVolume}ml)` : null,
+        selectedEgg !== "none" ? eggData?.ThaiName : null,
+      ]
+        .filter(Boolean)
+        .join(" + ")
     : "";
 
   const showResult = detectStatus === "matched" || detectStatus === "failed";
@@ -508,6 +551,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
                     </div>
                   )}
 
+                  {/* Dropdown เลือกเมนูอาหาร */}
                   <div className="flex items-center gap-2">
                     <UtensilsCrossed size={16} className="text-slate-400 shrink-0" />
                     <Select value={selectedFood} onValueChange={setSelectedFood}>
@@ -553,71 +597,109 @@ export default function FoodUploadModal({ open, onClose }: Props) {
                     </Select>
                   </div>
 
-                  {/* Dropdown เครื่องดื่ม (แสดงเมื่อมีข้อมูลอาหารแล้ว) */}
+                  {/* Dropdown เลือกไข่ */}
                   {activeFoodData && (
-                    <>
-                      <div className="flex items-center gap-2 pt-2 border-t border-emerald-100">
-                        <CupSoda size={16} className="text-slate-400 shrink-0" />
-                        <div className={`flex-1 grid gap-2 ${selectedDrink !== "none" ? "grid-cols-[1fr_80px]" : "grid-cols-1"}`}>
-                          <Select
-                            value={selectedDrink}
-                            onValueChange={(val) => {
-                              setSelectedDrink(val);
-                              setDrinkVolume(val === "none" ? 0 : 200);
-                            }}
-                          >
-                            <SelectTrigger className="h-8 text-xs bg-white border-slate-200 rounded-lg truncate">
-                              <SelectValue placeholder="เลือกเครื่องดื่ม" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl border-slate-200 shadow-xl max-h-60">
-                              <SelectItem value="none" className="text-xs text-slate-500">
-                                -- ไม่รับเครื่องดื่ม --
+                    <div className="flex items-center gap-2 pt-2 border-t border-emerald-100">
+                      <Egg size={16} className="text-slate-400 shrink-0" />
+                      <Select value={selectedEgg} onValueChange={setSelectedEgg}>
+                        <SelectTrigger className="h-8 text-xs bg-white border-slate-200 rounded-lg flex-1">
+                          <SelectValue placeholder="เลือกไข่ (ไม่บังคับ)" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-slate-200 shadow-xl">
+                          <SelectItem value="none" className="text-xs text-slate-500">
+                            -- ไม่รับไข่ --
+                          </SelectItem>
+                          {eggs.length > 0 ? (
+                            eggs.map((egg) => (
+                              <SelectItem
+                                key={egg.MenuID}
+                                value={egg.MenuID.toString()}
+                                className="text-xs"
+                              >
+                                {egg.ThaiName}
+                                {egg.Calories !== null && (
+                                  <span className="ml-1 text-slate-400">
+                                    ({egg.Calories} kcal)
+                                  </span>
+                                )}
                               </SelectItem>
-                              {beverages.map((drink) => (
-                                <SelectItem
-                                  key={drink.MenuID}
-                                  value={drink.MenuID.toString()}
-                                  className="text-xs"
-                                >
-                                  {drink.ThaiName}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {selectedDrink !== "none" && (
-                            <div className="relative">
-                              <input
-                                type="number"
-                                value={drinkVolume || ""}
-                                onChange={(e) => setDrinkVolume(Number(e.target.value))}
-                                placeholder="ปริมาณ"
-                                min="0"
-                                className="w-full h-8 pl-2 pr-6 text-xs text-right bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                              />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none">
-                                ml
-                              </span>
+                            ))
+                          ) : (
+                            <div className="flex items-center justify-center py-4 gap-2 text-xs text-slate-400">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              กำลังโหลด...
                             </div>
                           )}
-                        </div>
-                      </div>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
-                      {/* ตารางโภชนาการ */}
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-emerald-100">
-                        {[
-                          { label: "พลังงาน", value: totalCal,     unit: "kcal" },
-                          { label: "คาร์บ",   value: totalCarb,    unit: "g" },
-                          { label: "โปรตีน",  value: totalProtein, unit: "g" },
-                          { label: "ไขมัน",   value: totalFat,     unit: "g" },
-                        ].map(({ label, value, unit }) => (
-                          <div key={label} className="text-center bg-white p-2 rounded-xl border border-emerald-50">
-                            <span className="block text-[10px] text-slate-400 uppercase font-bold">{label}</span>
-                            <span className="text-lg font-bold text-emerald-600">{value}</span>
-                            <span className="text-[10px] text-slate-400 ml-1 font-medium">{unit}</span>
+                  {/* Dropdown เลือกเครื่องดื่ม */}
+                  {activeFoodData && (
+                    <div className="flex items-center gap-2 pt-2 border-t border-emerald-100">
+                      <CupSoda size={16} className="text-slate-400 shrink-0" />
+                      <div className={`flex-1 grid gap-2 ${selectedDrink !== "none" ? "grid-cols-[1fr_80px]" : "grid-cols-1"}`}>
+                        <Select
+                          value={selectedDrink}
+                          onValueChange={(val) => {
+                            setSelectedDrink(val);
+                            setDrinkVolume(val === "none" ? 0 : 200);
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-white border-slate-200 rounded-lg truncate">
+                            <SelectValue placeholder="เลือกเครื่องดื่ม" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border-slate-200 shadow-xl max-h-60">
+                            <SelectItem value="none" className="text-xs text-slate-500">
+                              -- ไม่รับเครื่องดื่ม --
+                            </SelectItem>
+                            {beverages.map((drink) => (
+                              <SelectItem
+                                key={drink.MenuID}
+                                value={drink.MenuID.toString()}
+                                className="text-xs"
+                              >
+                                {drink.ThaiName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedDrink !== "none" && (
+                          <div className="relative">
+                            <input
+                              type="number"
+                              value={drinkVolume || ""}
+                              onChange={(e) => setDrinkVolume(Number(e.target.value))}
+                              placeholder="ปริมาณ"
+                              min="0"
+                              className="w-full h-8 pl-2 pr-6 text-xs text-right bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none">
+                              ml
+                            </span>
                           </div>
-                        ))}
+                        )}
                       </div>
-                    </>
+                    </div>
+                  )}
+
+                  {/* ตารางโภชนาการ */}
+                  {activeFoodData && (
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-emerald-100">
+                      {[
+                        { label: "พลังงาน", value: totalCal, unit: "kcal" },
+                        { label: "คาร์บ", value: totalCarb, unit: "g" },
+                        { label: "โปรตีน", value: totalProtein, unit: "g" },
+                        { label: "ไขมัน", value: totalFat, unit: "g" },
+                      ].map(({ label, value, unit }) => (
+                        <div key={label} className="text-center bg-white p-2 rounded-xl border border-emerald-50">
+                          <span className="block text-[10px] text-slate-400 uppercase font-bold">{label}</span>
+                          <span className="text-lg font-bold text-emerald-600">{value}</span>
+                          <span className="text-[10px] text-slate-400 ml-1 font-medium">{unit}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
@@ -633,7 +715,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
                 </Button>
               )}
 
-              {/* [CHANGED 4] ปุ่มบันทึก — ส่ง imageFile แทน imageURL */}
+              {/* ปุ่มบันทึก */}
               <Button
                 onClick={async () => {
                   const res = await saveNutrition(imageFile, {
@@ -670,6 +752,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
                   setDetectError(null);
                   setSelectedFood("none");
                   setSelectedDrink("none");
+                  setSelectedEgg("none");
                 }}
                 className="w-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl text-xs h-10"
                 disabled={saveLoading}
