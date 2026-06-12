@@ -136,15 +136,22 @@ export default function LoginPage() {
         let errorMsg = "เข้าสู่ระบบไม่สำเร็จ";
         
         if (data.detail) {
-          const detail = String(data.detail).toLowerCase();
-          if (detail.includes("username") || detail.includes("not found")) {
+          const detail = String(data.detail);
+          const detailLower = detail.toLowerCase();
+          
+          // ✅ ถ้า backend ส่งมาแบบชัดเจนแล้ว (มี ❌ อยู่) ให้ใช้เลย
+          if (detail.includes("❌")) {
+            errorMsg = detail;
+          }
+          // ✅ ถ้าส่งมาเป็นภาษาไทยแบบเต็ม ให้แปลง
+          else if (detailLower.includes("username") || detailLower.includes("not found") || detailLower.includes("ไม่พบชื่อ")) {
             errorMsg = "❌ ไม่พบชื่อผู้ใช้นี้ในระบบ";
-          } else if (detail.includes("password") || detail.includes("incorrect")) {
+          } else if (detailLower.includes("password") || detailLower.includes("incorrect") || detailLower.includes("รหัสผ่าน")) {
             errorMsg = "❌ รหัสผ่านไม่ถูกต้อง";
-          } else if (detail.includes("org") || detail.includes("organization")) {
+          } else if (detailLower.includes("org") || detailLower.includes("organization") || detailLower.includes("หน่วยงาน")) {
             errorMsg = "❌ รหัสหน่วยงานไม่ถูกต้อง";
           } else {
-            errorMsg = "❌ " + String(data.detail);
+            errorMsg = "❌ " + detail;
           }
         } else if (data.error) {
           errorMsg = "❌ " + String(data.error);
