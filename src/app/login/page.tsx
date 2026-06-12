@@ -6,6 +6,7 @@ import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 type LoginType = "user" | "staff";
+type StaffRole = "doctor" | "admin";
 type LoginResponse = {
   access_token?: string;
   token?: string;
@@ -31,6 +32,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loginType, setLoginType] = useState<LoginType>("user");
+  const [staffRole, setStaffRole] = useState<StaffRole>("doctor"); // ✅ เลือก Doctor หรือ Admin
   const [form, setForm] = useState({ org_code: "", username: "", password: "" });
   const [orgVerified, setOrgVerified] = useState(false);
   const [orgName, setOrgName] = useState<string>("");
@@ -72,6 +74,7 @@ export default function LoginPage() {
       let detectedRole = "user";
 
       if (loginType === "user") {
+        // ✅ ผู้ใช้งานทั่วไป → login เป็น user เท่านั้น
         res = await fetch(`${API_URL}/user/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -83,51 +86,20 @@ export default function LoginPage() {
         detectedRole = "user";
 
       } else {
-        // ── 1. ลองแอดมินก่อน ──
-        const adminRes = await fetch(`${API_URL}/admins/login`, {
+        // ✅ เจ้าหน้าที่ → เลือก Doctor หรือ Admin ตามที่ผู้ใช้เลือก
+        const endpoint = staffRole === "doctor" ? `${API_URL}/doctors/login` : `${API_URL}/admins/login`;
+        
+        res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password, org_code: orgCode }),
         });
 
-        let adminData: LoginResponse = {};
-        if ((adminRes.headers.get("content-type") || "").includes("application/json")) {
-          adminData = await adminRes.json() as LoginResponse;
+        if ((res.headers.get("content-type") || "").includes("application/json")) {
+          data = await res.json() as LoginResponse;
         }
 
-        const isAdminSuccess = adminRes.ok && !adminData.error && (adminData.access_token || adminData.token);
-
-        if (isAdminSuccess) {
-          // ✅ แอดมินสำเร็จ — หยุดตรงนี้ ไม่ลอง doctor
-          res = adminRes;
-          data = adminData;
-          detectedRole = "admin";
-
-        } else {
-          // ── 2. ไม่ใช่แอดมิน → ลองแพทย์ ──
-          const docRes = await fetch(`${API_URL}/doctors/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password, org_code: orgCode }),
-          });
-
-          let docData: LoginResponse = {};
-          if ((docRes.headers.get("content-type") || "").includes("application/json")) {
-            docData = await docRes.json() as LoginResponse;
-          }
-
-          const isDocSuccess = docRes.ok && !docData.error && (docData.access_token || docData.token);
-
-          if (isDocSuccess) {
-            res = docRes;
-            data = docData;
-            detectedRole = "doctor";
-          } else {
-            // ❌ ทั้งคู่ล้มเหลว — แสดง error จากแอดมินเป็นหลัก
-            res = adminRes;
-            data = adminData.detail ? adminData : docData;
-          }
-        }
+        detectedRole = staffRole; // ✅ ใช้ค่าที่ผู้ใช้เลือก
       }
 
       if (!res.ok || data.error) {
@@ -202,6 +174,7 @@ export default function LoginPage() {
       >
         <h2 className="text-lg font-semibold text-center mb-5" style={{ color: '#0d4f2e' }}>เข้าสู่ระบบ</h2>
 
+        {/* ✅ Toggle สำหรับเลือก User หรือ Staff */}
         <div className="flex rounded-xl p-1 mb-5" style={{ background: '#f0faf5' }}>
           {(['user', 'staff'] as LoginType[]).map((t) => (
             <button
@@ -217,6 +190,25 @@ export default function LoginPage() {
             </button>
           ))}
         </div>
+
+        {/* ✅ Sub-toggle สำหรับ Staff เลือก Doctor หรือ Admin */}
+        {loginType === "staff" && (
+          <div className="flex rounded-xl p-1 mb-5" style={{ background: '#fef3c7' }}>
+            {(['doctor', 'admin'] as StaffRole[]).map((role) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => setStaffRole(role)}
+                className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
+                style={staffRole === role
+                  ? { background: '#f59e0b', color: '#fff', boxShadow: '0 2px 8px rgba(245,158,11,0.3)' }
+                  : { color: '#92400e' }}
+              >
+                {role === 'doctor' ? '⚕️ แพทย์/พยาบาล' : '👨‍💼 ผู้บริหาร'}
+              </button>
+            ))}
+          </div>
+        )}
 
         <form onSubmit={submit} className="flex flex-col gap-4">
 
