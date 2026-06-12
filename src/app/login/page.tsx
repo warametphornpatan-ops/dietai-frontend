@@ -6,7 +6,6 @@ import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 type LoginType = "user" | "staff";
-type StaffRole = "doctor" | "admin";
 type LoginResponse = {
   access_token?: string;
   token?: string;
@@ -32,7 +31,6 @@ export default function LoginPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loginType, setLoginType] = useState<LoginType>("user");
-  const [staffRole, setStaffRole] = useState<StaffRole>("doctor"); // ✅ เลือก Doctor หรือ Admin
   const [form, setForm] = useState({ org_code: "", username: "", password: "" });
   const [orgVerified, setOrgVerified] = useState(false);
   const [orgName, setOrgName] = useState<string>("");
@@ -86,10 +84,8 @@ export default function LoginPage() {
         detectedRole = "user";
 
       } else {
-        // ✅ เจ้าหน้าที่ → เลือก Doctor หรือ Admin ตามที่ผู้ใช้เลือก
-        const endpoint = staffRole === "doctor" ? `${API_URL}/doctors/login` : `${API_URL}/admins/login`;
-        
-        res = await fetch(endpoint, {
+        // ✅ เจ้าหน้าที่ → ส่งไป /doctors/login เสมอ
+        res = await fetch(`${API_URL}/doctors/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password, org_code: orgCode }),
@@ -99,7 +95,7 @@ export default function LoginPage() {
           data = await res.json() as LoginResponse;
         }
 
-        detectedRole = staffRole; // ✅ ใช้ค่าที่ผู้ใช้เลือก
+        detectedRole = "doctor"; // ✅ เจ้าหน้าที่ = doctor
       }
 
       if (!res.ok || data.error) {
@@ -190,25 +186,6 @@ export default function LoginPage() {
             </button>
           ))}
         </div>
-
-        {/* ✅ Sub-toggle สำหรับ Staff เลือก Doctor หรือ Admin */}
-        {loginType === "staff" && (
-          <div className="flex rounded-xl p-1 mb-5" style={{ background: '#fef3c7' }}>
-            {(['doctor', 'admin'] as StaffRole[]).map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => setStaffRole(role)}
-                className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
-                style={staffRole === role
-                  ? { background: '#f59e0b', color: '#fff', boxShadow: '0 2px 8px rgba(245,158,11,0.3)' }
-                  : { color: '#92400e' }}
-              >
-                {role === 'doctor' ? '⚕️ แพทย์/พยาบาล' : '👨‍💼 ผู้บริหาร'}
-              </button>
-            ))}
-          </div>
-        )}
 
         <form onSubmit={submit} className="flex flex-col gap-4">
 
