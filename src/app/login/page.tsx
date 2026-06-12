@@ -132,7 +132,27 @@ export default function LoginPage() {
       }
 
       if (!res.ok || data.error) {
-        alert(String(data.detail || data.error || "เข้าสู่ระบบไม่สำเร็จ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"));
+        // ✅ แปลง error message ให้เข้าใจ
+        let errorMsg = "เข้าสู่ระบบไม่สำเร็จ";
+        
+        if (data.detail) {
+          const detail = String(data.detail).toLowerCase();
+          if (detail.includes("username") || detail.includes("not found")) {
+            errorMsg = "❌ ไม่พบชื่อผู้ใช้นี้ในระบบ";
+          } else if (detail.includes("password") || detail.includes("incorrect")) {
+            errorMsg = "❌ รหัสผ่านไม่ถูกต้อง";
+          } else if (detail.includes("org") || detail.includes("organization")) {
+            errorMsg = "❌ รหัสหน่วยงานไม่ถูกต้อง";
+          } else {
+            errorMsg = "❌ " + String(data.detail);
+          }
+        } else if (data.error) {
+          errorMsg = "❌ " + String(data.error);
+        } else {
+          errorMsg = "❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
+        }
+        
+        alert(errorMsg);
         return;
       }
 
