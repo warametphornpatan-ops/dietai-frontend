@@ -84,18 +84,51 @@ export default function LoginPage() {
         detectedRole = "user";
 
       } else {
-        // ✅ เจ้าหน้าที่ → ส่งไป /doctors/login เสมอ
-        res = await fetch(`${API_URL}/doctors/login`, {
+        // ✅ เจ้าหน้าที่ → ลองแอดมินก่อน ถ้าไม่ได้ลองแพทย์
+        const adminRes = await fetch(`${API_URL}/admins/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password, org_code: orgCode }),
         });
 
-        if ((res.headers.get("content-type") || "").includes("application/json")) {
-          data = await res.json() as LoginResponse;
+        let adminData: LoginResponse = {};
+        if ((adminRes.headers.get("content-type") || "").includes("application/json")) {
+          adminData = await adminRes.json() as LoginResponse;
         }
 
-        detectedRole = "doctor"; // ✅ เจ้าหน้าที่ = doctor
+        const isAdminSuccess = adminRes.ok && !adminData.error && (adminData.access_token || adminData.token);
+
+        if (isAdminSuccess) {
+          // ✅ แอดมินสำเร็จ — หยุดตรงนี้ ไม่ลองแพทย์
+          res = adminRes;
+          data = adminData;
+          detectedRole = "admin";
+
+        } else {
+          // ── ไม่ใช่แอดมิน → ลองแพทย์ ──
+          const docRes = await fetch(`${API_URL}/doctors/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password, org_code: orgCode }),
+          });
+
+          let docData: LoginResponse = {};
+          if ((docRes.headers.get("content-type") || "").includes("application/json")) {
+            docData = await docRes.json() as LoginResponse;
+          }
+
+          const isDocSuccess = docRes.ok && !docData.error && (docData.access_token || docData.token);
+
+          if (isDocSuccess) {
+            res = docRes;
+            data = docData;
+            detectedRole = "doctor";
+          } else {
+            // ❌ ทั้งคู่ล้มเหลว — แสดง error จากแอดมินเป็นหลัก
+            res = adminRes;
+            data = adminData.detail ? adminData : docData;
+          }
+        }
       }
 
       if (!res.ok || data.error) {
