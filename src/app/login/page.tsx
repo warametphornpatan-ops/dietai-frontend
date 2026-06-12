@@ -137,21 +137,22 @@ export default function LoginPage() {
         
         if (data.detail) {
           const detail = String(data.detail);
-          const detailLower = detail.toLowerCase();
           
-          // ✅ ถ้า backend ส่งมาแบบชัดเจนแล้ว (มี ❌ อยู่) ให้ใช้เลย
+          // ✅ Priority 1: ถ้า backend ส่งมาแบบชัดเจนแล้ว (มี ❌ อยู่) ให้ใช้เลย
           if (detail.includes("❌")) {
             errorMsg = detail;
-          }
-          // ✅ ถ้าส่งมาเป็นภาษาไทยแบบเต็ม ให้แปลง
-          else if (detailLower.includes("username") || detailLower.includes("not found") || detailLower.includes("ไม่พบชื่อ")) {
-            errorMsg = "❌ ไม่พบชื่อผู้ใช้นี้ในระบบ";
-          } else if (detailLower.includes("password") || detailLower.includes("incorrect") || detailLower.includes("รหัสผ่าน")) {
-            errorMsg = "❌ รหัสผ่านไม่ถูกต้อง";
-          } else if (detailLower.includes("org") || detailLower.includes("organization") || detailLower.includes("หน่วยงาน")) {
-            errorMsg = "❌ รหัสหน่วยงานไม่ถูกต้อง";
           } else {
-            errorMsg = "❌ " + detail;
+            // ✅ Priority 2: ถ้าส่งมาเป็นภาษาไทยแบบเต็ม ให้แปลง
+            const detailLower = detail.toLowerCase();
+            if (detailLower.includes("username") || detailLower.includes("not found") || detailLower.includes("ไม่พบชื่อ")) {
+              errorMsg = "❌ ไม่พบชื่อผู้ใช้นี้ในระบบ";
+            } else if (detailLower.includes("password") || detailLower.includes("incorrect") || detailLower.includes("รหัสผ่าน") || detailLower.includes("รหัสผู้ใช้")) {
+              errorMsg = "❌ รหัสผ่านไม่ถูกต้อง";
+            } else if (detailLower.includes("org") || detailLower.includes("organization") || detailLower.includes("หน่วยงาน")) {
+              errorMsg = "❌ รหัสหน่วยงานไม่ถูกต้อง";
+            } else {
+              errorMsg = "❌ " + detail;
+            }
           }
         } else if (data.error) {
           errorMsg = "❌ " + String(data.error);
