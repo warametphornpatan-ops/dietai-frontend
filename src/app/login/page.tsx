@@ -124,9 +124,9 @@ export default function LoginPage() {
             data = adminData;
             detectedRole = "admin";
           } else {
-            // ❌ ทั้งคู่ล้มเหลว — แสดง error จากแพทย์เป็นหลัก
-            res = docRes;
-            data = docData.detail ? docData : adminData;
+            // ❌ ทั้งคู่ล้มเหลว — ใช้ error จากแอดมิน (ชัดเจนกว่า)
+            res = adminRes;
+            data = adminData.detail ? adminData : docData;
           }
         }
       }
