@@ -84,49 +84,49 @@ export default function LoginPage() {
         detectedRole = "user";
 
       } else {
-        // ✅ เจ้าหน้าที่ → ลองแอดมินก่อน ถ้าไม่ได้ลองแพทย์
-        const adminRes = await fetch(`${API_URL}/admins/login`, {
+        // ✅ เจ้าหน้าที่ → ลองแพทย์ก่อน ถ้าไม่ได้ลองแอดมิน
+        const docRes = await fetch(`${API_URL}/doctors/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password, org_code: orgCode }),
         });
 
-        let adminData: LoginResponse = {};
-        if ((adminRes.headers.get("content-type") || "").includes("application/json")) {
-          adminData = await adminRes.json() as LoginResponse;
+        let docData: LoginResponse = {};
+        if ((docRes.headers.get("content-type") || "").includes("application/json")) {
+          docData = await docRes.json() as LoginResponse;
         }
 
-        const isAdminSuccess = adminRes.ok && !adminData.error && (adminData.access_token || adminData.token);
+        const isDocSuccess = docRes.ok && !docData.error && (docData.access_token || docData.token);
 
-        if (isAdminSuccess) {
-          // ✅ แอดมินสำเร็จ — หยุดตรงนี้ ไม่ลองแพทย์
-          res = adminRes;
-          data = adminData;
-          detectedRole = "admin";
+        if (isDocSuccess) {
+          // ✅ แพทย์สำเร็จ — หยุดตรงนี้ ไม่ลองแอดมิน (JWT มี position)
+          res = docRes;
+          data = docData;
+          detectedRole = "doctor";
 
         } else {
-          // ── ไม่ใช่แอดมิน → ลองแพทย์ ──
-          const docRes = await fetch(`${API_URL}/doctors/login`, {
+          // ── ไม่ใช่แพทย์ → ลองแอดมิน ──
+          const adminRes = await fetch(`${API_URL}/admins/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password, org_code: orgCode }),
           });
 
-          let docData: LoginResponse = {};
-          if ((docRes.headers.get("content-type") || "").includes("application/json")) {
-            docData = await docRes.json() as LoginResponse;
+          let adminData: LoginResponse = {};
+          if ((adminRes.headers.get("content-type") || "").includes("application/json")) {
+            adminData = await adminRes.json() as LoginResponse;
           }
 
-          const isDocSuccess = docRes.ok && !docData.error && (docData.access_token || docData.token);
+          const isAdminSuccess = adminRes.ok && !adminData.error && (adminData.access_token || adminData.token);
 
-          if (isDocSuccess) {
-            res = docRes;
-            data = docData;
-            detectedRole = "doctor";
-          } else {
-            // ❌ ทั้งคู่ล้มเหลว — แสดง error จากแอดมินเป็นหลัก
+          if (isAdminSuccess) {
             res = adminRes;
-            data = adminData.detail ? adminData : docData;
+            data = adminData;
+            detectedRole = "admin";
+          } else {
+            // ❌ ทั้งคู่ล้มเหลว — แสดง error จากแพทย์เป็นหลัก
+            res = docRes;
+            data = docData.detail ? docData : adminData;
           }
         }
       }
