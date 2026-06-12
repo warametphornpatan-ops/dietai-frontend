@@ -221,14 +221,10 @@ export default function DoctorDashboard() {
                 {doctorProfile?.hospitalName}
               </h1>
               <p style={{ margin: "4px 0 0 0", fontSize: 13, color: T.textSub }}>
-                แพทย์:{" "}
+                {doctorProfile?.position || "แพทย์"}:{" "}
                 <span style={{ color: T.accent, fontWeight: 600 }}>
                   {doctorProfile?.firstName} {doctorProfile?.lastName}
                 </span>
-                {/* ✅ แสดง position ถ้ามี */}
-                {doctorProfile?.position && (
-                  <span style={{ color: T.textMuted }}> · {doctorProfile.position}</span>
-                )}
                 {doctorProfile?.orgCode && (
                   <span style={{ color: T.textMuted }}> (รหัส: {doctorProfile.orgCode})</span>
                 )}
