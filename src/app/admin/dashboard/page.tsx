@@ -322,16 +322,31 @@ export default function AdminDashboardPage() {
   }
 
   async function handleDelete(row: StaffRow) {
-    if (row.role === "admin") {
-      alert("ไม่สามารถลบผู้ดูแลระบบจากหน้านี้ได้");
+    // กันลบบัญชีตัวเอง (สำคัญ ไม่งั้นอาจล็อกตัวเองออกจากระบบ)
+    if (row.role === "admin" && row.id === adminId) {
+      alert("ไม่สามารถลบบัญชีของตัวเองได้");
       return;
     }
+
     if (!confirm(`ยืนยันลบ "${row.first_name} ${row.last_name}" ออกจากระบบ?`)) return;
+
+    // เลือก endpoint ตาม role
+    const url = row.role === "admin"
+      ? `${API_URL}/admins/${row.id}`
+      : `${API_URL}/admins/doctors/${row.id}`;
+
     try {
-      const res = await fetch(`${API_URL}/admins/doctors/${row.id}`, { method: "DELETE", headers: getAuthHeaders() });
-      if (!res.ok) { alert("ลบไม่สำเร็จ"); return; }
-      setStaffList(s => s.filter(x => x.id !== row.id));
-    } catch { alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
+      const res = await fetch(url, { method: "DELETE", headers: getAuthHeaders() });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(d.detail || "ลบไม่สำเร็จ");
+        return;
+      }
+      // กรองด้วย id + role กันกรณี id ซ้ำข้าม role
+      setStaffList(s => s.filter(x => !(x.id === row.id && x.role === row.role)));
+    } catch {
+      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+    }
   }
 
   const filtered = staffList.filter(s =>
