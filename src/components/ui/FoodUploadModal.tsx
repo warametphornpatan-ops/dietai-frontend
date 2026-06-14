@@ -528,7 +528,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
               <Card className="border-0 bg-slate-50 overflow-hidden rounded-2xl shadow-inner ring-1 ring-slate-100">
                 <CardContent className="p-0 relative">
                   {imageURL && (
-                    <img src={imageURL} alt="preview" className="w-full h-44 object-cover" />
+                    <img src={imageURL} alt="preview" className="w-full h-32 object-cover" />
                   )}
                   {detectLoading && (
                     <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center animate-in fade-in">
@@ -549,7 +549,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
 
               {/* ─── ผลวิเคราะห์ + dropdown ─── */}
               {showResult && (
-                <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                <div className="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100 space-y-2 animate-in fade-in slide-in-from-bottom-2">
 
                   {detectStatus === "matched" && detectedFood && (
                     <div className="flex items-center gap-2 pb-2 border-b border-emerald-100">
