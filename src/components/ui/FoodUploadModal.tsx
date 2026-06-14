@@ -485,8 +485,8 @@ export default function FoodUploadModal({ open, onClose }: Props) {
   // ----------------------------------------------------------------------
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="sm:max-w-[400px] rounded-3xl p-0 overflow-hidden border-0 shadow-2xl">
-        <DialogHeader className="p-6 pb-2 bg-white">
+      <DialogContent className="sm:max-w-[400px] max-h-[90vh] overflow-y-auto rounded-3xl p-0 border-0 shadow-2xl">
+        <DialogHeader className="p-6 pb-1 bg-white">
           <DialogTitle className="text-xl font-bold text-slate-800">
             {mode === "menu" ? "บันทึกอาหาร" : "วิเคราะห์อาหาร"}
           </DialogTitle>
@@ -522,13 +522,13 @@ export default function FoodUploadModal({ open, onClose }: Props) {
 
           {/* ─── หน้า preview ─── */}
           {mode === "preview" && (
-            <div className="space-y-4">
+            <div className="space-y-3">
 
               {/* รูปภาพ */}
               <Card className="border-0 bg-slate-50 overflow-hidden rounded-2xl shadow-inner ring-1 ring-slate-100">
                 <CardContent className="p-0 relative">
                   {imageURL && (
-                    <img src={imageURL} alt="preview" className="w-full h-52 object-cover" />
+                    <img src={imageURL} alt="preview" className="w-full h-44 object-cover" />
                   )}
                   {detectLoading && (
                     <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center animate-in fade-in">
