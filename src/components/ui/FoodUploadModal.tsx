@@ -485,7 +485,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
   // ----------------------------------------------------------------------
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="sm:max-w-[400px] max-h-[90vh] overflow-y-auto rounded-3xl p-0 border-0 shadow-2xl">
+      <DialogContent className="sm:max-w-[400px] max-h-[90vh] overflow-y-auto rounded-3xl p-0 border-0 shadow-2xl [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <DialogHeader className="p-6 pb-1 bg-white">
           <DialogTitle className="text-xl font-bold text-slate-800">
             {mode === "menu" ? "บันทึกอาหาร" : "วิเคราะห์อาหาร"}
