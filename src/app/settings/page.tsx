@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Lightbulb } from "lucide-react"; 
+import { Lightbulb, History, X } from "lucide-react"; // ✅ เพิ่มไอคอนประวัติและปุ่มปิด
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -21,7 +21,7 @@ interface UserProfile {
     target_carbs: number | null;
     target_protein: number | null;
     target_fat: number | null;
-    birth_date: string | null;  // ✅ เปลี่ยนจาก age
+    birth_date: string | null;
     weight_kg: number | null;
     height_cm: number | null;
     health_info: string | null;
@@ -30,12 +30,21 @@ interface UserProfile {
     goal?: string;
 }
 
+// ✅ เพิ่ม Type สำหรับประวัติสุขภาพ
+interface ProfileHistoryItem {
+    id: number;
+    weight_kg: number;
+    height_cm: number;
+    health_info: string | null;
+    created_at: string;
+}
+
 interface ProfileRowProps {
     label: string;
     value: string | number;
 }
 
-// ✅ เพิ่ม: Function คำนวณอายุจาก birth_date
+// ✅ Function คำนวณอายุจาก birth_date
 function calculateAge(birthDateStr: string | null): number {
     if (!birthDateStr) return 0;
     const birthDate = new Date(birthDateStr);
@@ -73,8 +82,13 @@ export default function SettingsPage() {
     const [saving, setSaving] = useState(false);
     
     // State สำหรับเปิด/ปิด Tooltip
-    const [showInfoTooltip, setShowInfoTooltip] = useState(false); // ของ BMI/BMR
-    const [showTdeeTooltip, setShowTdeeTooltip] = useState(false); // ของ TDEE
+    const [showInfoTooltip, setShowInfoTooltip] = useState(false); 
+    const [showTdeeTooltip, setShowTdeeTooltip] = useState(false); 
+
+    // ✅ State สำหรับระบบประวัติสุขภาพ
+    const [historyList, setHistoryList] = useState<ProfileHistoryItem[]>([]);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     const [profileData, setProfileData] = useState<UserProfile | null>(null);
 
@@ -82,6 +96,7 @@ export default function SettingsPage() {
     const [height, setHeight] = useState("");
     const [healthInfo, setHealthInfo] = useState("");
 
+    // โหลดข้อมูลโปรไฟล์ตอนเข้าหน้าเว็บ
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (!token) {
@@ -117,6 +132,36 @@ export default function SettingsPage() {
         }
         fetchProfile();
     }, [router]);
+
+    // ✅ Effect สำหรับดึงประวัติเมื่อเปิด Modal
+    useEffect(() => {
+        if (!showHistoryModal) return;
+
+        async function fetchHistory() {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            setLoadingHistory(true);
+            try {
+                // หมายเหตุ: ตรงนี้อิงตาม Endpoint ที่คุณทำไว้ในหลังบ้าน (เช่น /user/me/history หรือ /me/history)
+                const res = await fetch(`${API_BASE}/user/me/history`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setHistoryList(data);
+                } else {
+                    console.error("Failed to fetch history");
+                }
+            } catch (error) {
+                console.error("Error fetching history:", error);
+            } finally {
+                setLoadingHistory(false);
+            }
+        }
+
+        fetchHistory();
+    }, [showHistoryModal]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -172,7 +217,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 py-8 px-5 font-sans">
+        <div className="min-h-screen bg-slate-50 py-8 px-5 font-sans relative">
             <div className="max-w-md mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 
                 <div className="flex items-center gap-3 mb-2">
@@ -220,14 +265,26 @@ export default function SettingsPage() {
                             </CardHeader>
                             <CardContent className="pt-5 pb-5 text-[15px]">
                                 <ProfileRow label="ชื่อผู้ใช้" value={profileData.username || '-'} />
-                                <ProfileRow label="อายุ" value={profileData.birth_date ? `${calculateAge(profileData.birth_date)} ปี` : '-'} />  {/* ✅ คำนวณจาก birth_date */}
-                                <ProfileRow label="วันเกิด" value={profileData.birth_date || '-'} />  {/* ✅ แสดง birth_date */}
+                                <ProfileRow label="อายุ" value={profileData.birth_date ? `${calculateAge(profileData.birth_date)} ปี` : '-'} />  
+                                <ProfileRow label="วันเกิด" value={profileData.birth_date || '-'} />  
                                 <ProfileRow label="ส่วนสูง" value={profileData.height_cm ? `${profileData.height_cm} ซม.` : '-'} />
                                 <ProfileRow label="น้ำหนัก" value={profileData.weight_kg ? `${profileData.weight_kg} กก.` : '-'} />
                                 <ProfileRow label="BMI" value={profileData.bmi ? profileData.bmi : calculateBMI(profileData.weight_kg, profileData.height_cm)} />
                                 <ProfileRow label="BMR" value={profileData.bmr ? `${profileData.bmr} kcal` : '-'} />
                                 <ProfileRow label="เป้าหมายด้านสุขภาพ" value={profileData.goal || '-'} />
                                 <ProfileRow label="การแพ้อาหาร" value={profileData.health_info || '-'} />
+                                
+                                {/* 🛠️ เพิ่มปุ่มประวัติสุขภาพ ไว้ที่ท้าย Card ข้อมูลส่วนตัว */}
+                                <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowHistoryModal(true)}
+                                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-emerald-600 bg-slate-100 hover:bg-emerald-50 px-3 py-2 rounded-xl transition-all"
+                                    >
+                                        <History size={14} />
+                                        ดูประวัติการเปลี่ยนแปลง
+                                    </button>
+                                </div>
                             </CardContent>
                         </Card>
 
@@ -339,6 +396,84 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* ---------------------------------------------------------------------- */}
+            {/* 📜 Modal หน้าต่างแสดงประวัติสุขภาพ (แสดงผลเมื่อ showHistoryModal เป็น true) */}
+            {/* ---------------------------------------------------------------------- */}
+            {showHistoryModal && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 max-h-[75vh] flex flex-col border border-slate-100 animate-in zoom-in-95 duration-200">
+                        
+                        {/* ส่วนหัว Modal */}
+                        <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+                            <div className="flex items-center gap-2">
+                                <History size={18} className="text-slate-700" />
+                                <h3 className="text-base font-bold text-slate-800">ประวัติการบันทึกร่างกาย</h3>
+                            </div>
+                            <button 
+                                onClick={() => setShowHistoryModal(false)}
+                                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                                type="button"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* รายการข้อมูลด้านใน (Scrollable) */}
+                        <div className="overflow-y-auto flex-1 space-y-3 pr-1 scrollbar-thin">
+                            {loadingHistory ? (
+                                <div className="text-center py-8 text-xs text-slate-400">กำลังโหลดประวัติ...</div>
+                            ) : historyList.length === 0 ? (
+                                <p className="text-center text-slate-400 py-8 text-sm">ยังไม่มีประวัติการบันทึกข้อมูล</p>
+                            ) : (
+                                historyList.map((item) => (
+                                    <div key={item.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                                        
+                                        {/* 📅 แสดง วัน เดือน ปี และเวลา ภาษาไทย */}
+                                        <div className="font-semibold text-emerald-600 mb-1.5">
+                                            {new Date(item.created_at).toLocaleDateString('th-TH', { 
+                                                year: 'numeric', 
+                                                month: 'short', 
+                                                day: 'numeric' 
+                                            })}
+                                            {" เวลา "}
+                                            {new Date(item.created_at).toLocaleTimeString('th-TH', { 
+                                                hour: '2-digit', 
+                                                minute: '2-digit' 
+                                            })} น.
+                                        </div>
+
+                                        {/* รายละเอียด */}
+                                        <div className="grid grid-cols-2 gap-1 text-slate-600">
+                                            <div>⚖️ น้ำหนัก: <span className="font-bold text-slate-800">{item.weight_kg}</span> กก.</div>
+                                            <div>📏 ส่วนสูง: <span className="font-bold text-slate-800">{item.height_cm}</span> ซม.</div>
+                                        </div>
+                                        
+                                        {item.health_info && (
+                                            <div className="text-[11px] text-slate-500 mt-1.5 pt-1 border-t border-slate-200/60 border-dashed break-words">
+                                                ℹ️ สุขภาพ: {item.health_info}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* ปุ่มปิดด้านล่าง */}
+                        <div className="mt-4 pt-2 border-t border-slate-100">
+                            <Button 
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowHistoryModal(false)}
+                                className="w-full h-10 border-slate-200 rounded-xl font-medium text-xs text-slate-600 hover:bg-slate-50"
+                            >
+                                ปิดหน้าต่าง
+                            </Button>
+                        </div>
+
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
