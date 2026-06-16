@@ -38,7 +38,7 @@ type FormValues = {
   password: string;
   confirmPassword?: string;
   gender: Gender;
-  age: number;
+  birthDate: string; // ✅ แก้: age → birthDate
   heightCm: number;
   weightKg: number;
   targetWeightKg?: number;
@@ -66,6 +66,29 @@ function getBmiLabel(b: number): { label: string; color: string } {
   return { label: "อ้วน", color: "#ef4444" };
 }
 
+// ✅ เพิ่ม: คำนวณอายุจาก birthDate
+function calculateAge(birthDateStr: string): number {
+  if (!birthDateStr) return 0;
+  const birthDate = new Date(birthDateStr);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return Math.max(0, age);
+}
+
+// ✅ เพิ่ม: Filter goals ตาม BMI
+function getAvailableGoals(bmiValue: number): string[] {
+  if (bmiValue >= 25) {
+    // อ้วน หรือ อ้วนมาก → เพิ่มเฉพาะลดน้ำหนัก
+    return ["ลดน้ำหนัก"];
+  }
+  // น้อย ปกติ ฟอร์มเกิน → เพิ่มเฉพาะ เพิ่มน้ำหนัก + รักษาน้ำหนัก
+  return ["เพิ่มน้ำหนัก", "รักษาน้ำหนัก"];
+}
+
 type RegisterPayload = {
   email?: string | null;
   username: string;
@@ -73,7 +96,7 @@ type RegisterPayload = {
   firstName: string;
   lastName: string;
   gender: string;
-  age: number;
+  birth_date: string; // ✅ แก้: age → birth_date
   height_cm: number;
   weight_kg: number;
   target_weight_kg: number | null;
@@ -251,7 +274,7 @@ function PrimaryBtn({
 
 const stepTitles = [
   "เพศของคุณ",
-  "อายุ",
+  "วันเดือนปีเกิด", // ✅ แก้: "อายุ" → "วันเดือนปีเกิด"
   "ส่วนสูง",
   "น้ำหนัก",
   "กิจกรรมประจำวัน",
@@ -294,7 +317,7 @@ export default function RegisterWizard() {
     mode: "onTouched",
     defaultValues: {
       gender: "ชาย",
-      age: undefined,
+      birthDate: "", // ✅ แก้: age → birthDate
       heightCm: undefined,
       weightKg: undefined,
       targetWeightKg: undefined,
@@ -312,7 +335,7 @@ export default function RegisterWizard() {
   });
 
   const gender = watch("gender");
-  const age = watch("age");
+  const birthDate = watch("birthDate"); // ✅ แก้
   const heightCm = watch("heightCm");
   const weightKg = watch("weightKg");
   const activityLevel = watch("activityLevel");
@@ -322,6 +345,8 @@ export default function RegisterWizard() {
   const email = watch("email");
   const currentBMI = bmi(Number(weightKg) || 0, Number(heightCm) || 1);
   const bmiInfo = getBmiLabel(currentBMI);
+  const calculatedAge = calculateAge(birthDate); // ✅ เพิ่ม
+  const availableGoals = getAvailableGoals(currentBMI); // ✅ เพิ่ม
 
   const next = async () => {
     if (step === 7) {
@@ -358,7 +383,7 @@ export default function RegisterWizard() {
       const lastNameVal = formData.lastName as string | undefined;
       const citizenIdVal = formData.citizenID as string | undefined;
       const genderVal = formData.gender as string | undefined;
-      const ageVal = formData.age as number | string | undefined;
+      const birthDateVal = formData.birthDate as string | undefined; // ✅ แก้
       const heightVal = formData.heightCm as number | string | undefined;
       const weightVal = formData.weightKg as number | string | undefined;
       const activityVal = formData.activityLevel as string | undefined;
@@ -375,7 +400,7 @@ export default function RegisterWizard() {
             last_name: lastNameVal?.trim() || null,
             citizen_id: (citizenIdVal || "").replace(/\D/g, ""),
             gender: genderVal || null,
-            age: Number(ageVal) || 0,
+            birth_date: birthDateVal || null, // ✅ แก้
             height_cm: Number(heightVal) || 0,
             weight_kg: Number(weightVal) || 0,
             activity_level: activityVal || null,
@@ -406,11 +431,10 @@ export default function RegisterWizard() {
     const norm = {
       email: v.email.trim() === "" ? null : v.email.trim(),
       username: v.username.trim(),
-      // ✅ แก้ไข: ใช้ชื่อ field ตรงกับ Backend (firstName / lastName)
       firstName: v.firstName.trim(),
       lastName: v.lastName.trim(),
       gender: v.gender,
-      age: Number(v.age) || 0,
+      birth_date: v.birthDate, // ✅ แก้
       height_cm: Number(v.heightCm) || 0,
       weight_kg: Number(v.weightKg) || 0,
       target_weight_kg:
@@ -439,7 +463,6 @@ export default function RegisterWizard() {
         }
 
         if (verifyData?.user) {
-          // ✅ แก้ไข: เปลี่ยน /register → /user/register
           const response = await fetch(`${API_URL}/user/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -448,13 +471,12 @@ export default function RegisterWizard() {
               username: norm.username,
               password: norm.password,
               email: norm.email,
-              // ✅ แก้ไข: ใช้ firstName / lastName ตรงกับ Backend
               firstName: norm.firstName,
               lastName: norm.lastName,
               citizen_id: norm.citizen_id,
               role: "user",
               gender: norm.gender,
-              age: norm.age,
+              birth_date: norm.birth_date, // ✅ แก้
               height_cm: norm.height_cm,
               weight_kg: norm.weight_kg,
               target_weight_kg: norm.target_weight_kg,
@@ -485,11 +507,10 @@ export default function RegisterWizard() {
         email: norm.email,
         username: norm.username,
         password: norm.password,
-        // ✅ แก้ไข: ใช้ firstName / lastName ตรงกับ Backend
         firstName: norm.firstName,
         lastName: norm.lastName,
         gender: norm.gender,
-        age: norm.age,
+        birth_date: norm.birth_date, // ✅ แก้
         height_cm: norm.height_cm,
         weight_kg: norm.weight_kg,
         target_weight_kg: norm.target_weight_kg,
@@ -500,7 +521,6 @@ export default function RegisterWizard() {
         citizen_id: norm.citizen_id,
       };
 
-      // ✅ แก้ไข: เปลี่ยน /register → /user/register
       const res = await fetch(`${API_URL}/user/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -664,27 +684,23 @@ export default function RegisterWizard() {
           </div>
         )}
 
-        {/* STEP 1: age */}
+        {/* STEP 1: birthDate ✅ แก้ไข */}
         {step === 1 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <label style={{ fontSize: 13, color: "#2d7055", fontWeight: 600 }}>
-              อายุ (ปี)
+              วันเดือนปีเกิด
             </label>
             <StyledInput
-              type="number"
-              min={1}
-              max={80}
-              value={age ?? ""}
-              placeholder="เช่น 25"
-              onChange={(e) =>
-                setValue(
-                  "age",
-                  e.target.value === ""
-                    ? (undefined as unknown as number)
-                    : Number(e.target.value)
-                )
-              }
+              type="date"
+              value={birthDate || ""}
+              onChange={(e) => setValue("birthDate", e.target.value)}
+              max={new Date().toISOString().split('T')[0]}
             />
+            {birthDate && (
+              <div style={{ fontSize: 13, color: "#4a7c62" }}>
+                อายุ: <strong>{calculatedAge} ปี</strong>
+              </div>
+            )}
             <PrimaryBtn onClick={next}>ดำเนินการต่อ →</PrimaryBtn>
           </div>
         )}
@@ -835,51 +851,53 @@ export default function RegisterWizard() {
           </div>
         )}
 
-        {/* STEP 5: goal */}
+        {/* STEP 5: goal ✅ แก้ไข - filter ตาม BMI */}
         {step === 5 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {[
               { g: "ลดน้ำหนัก", icon: "📉", sub: "ลดไขมัน ควบคุมคาร์บ" },
-              { g: "สุขภาพที่ดีขึ้น", icon: "💚", sub: "สมดุลโภชนาการ" },
+              { g: "รักษาน้ำหนัก", icon: "➡️", sub: "รักษาสัดส่วนปัจจุบัน" },
               { g: "เพิ่มน้ำหนัก", icon: "📈", sub: "เพิ่มกล้ามเนื้อ มวลกาย" },
-            ].map(({ g, icon, sub }) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => setValue("goal", g)}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "14px 16px",
-                  borderRadius: 14,
-                  cursor: "pointer",
-                  border: goal === g ? "2px solid #16a360" : "1.5px solid #c8e8d8",
-                  background: goal === g ? "rgba(22,163,96,0.07)" : "#f4fbf7",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  transition: "all 0.15s",
-                  boxShadow: goal === g ? "0 0 0 3px rgba(22,163,96,0.12)" : "none",
-                }}
-              >
-                <span style={{ fontSize: 24 }}>{icon}</span>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: goal === g ? 700 : 400, color: goal === g ? "#0d4f2e" : "#4a7c62" }}>
-                    {g}
+            ]
+              .filter((item) => availableGoals.includes(item.g)) // ✅ Filter ตาม BMI
+              .map(({ g, icon, sub }) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setValue("goal", g)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "14px 16px",
+                    borderRadius: 14,
+                    cursor: "pointer",
+                    border: goal === g ? "2px solid #16a360" : "1.5px solid #c8e8d8",
+                    background: goal === g ? "rgba(22,163,96,0.07)" : "#f4fbf7",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    transition: "all 0.15s",
+                    boxShadow: goal === g ? "0 0 0 3px rgba(22,163,96,0.12)" : "none",
+                  }}
+                >
+                  <span style={{ fontSize: 24 }}>{icon}</span>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: goal === g ? 700 : 400, color: goal === g ? "#0d4f2e" : "#4a7c62" }}>
+                      {g}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#6b9e84", marginTop: 1 }}>
+                      {sub}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: "#6b9e84", marginTop: 1 }}>
-                    {sub}
-                  </div>
-                </div>
-                {goal === g && (
-                  <span style={{ marginLeft: "auto", color: "#16a360" }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </span>
-                )}
-              </button>
-            ))}
+                  {goal === g && (
+                    <span style={{ marginLeft: "auto", color: "#16a360" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                  )}
+                </button>
+              ))}
             <div style={{ marginTop: 4 }}>
               <PrimaryBtn onClick={next}>ดำเนินการต่อ →</PrimaryBtn>
             </div>
@@ -1094,7 +1112,7 @@ export default function RegisterWizard() {
             <div style={{ borderRadius: 14, border: "1px solid rgba(22,163,97,0.18)", overflow: "hidden" }}>
               {[
                 { label: "เพศ", value: gender },
-                { label: "อายุ", value: `${age} ปี` },
+                { label: "วันเดือนปีเกิด", value: `${birthDate} (${calculatedAge} ปี)` }, // ✅ แก้
                 { label: "ส่วนสูง", value: `${heightCm} ซม.` },
                 { label: "น้ำหนัก", value: `${weightKg} กก.` },
                 { label: "BMI", value: `${currentBMI.toFixed(1)} (${bmiInfo.label})`, color: bmiInfo.color },
