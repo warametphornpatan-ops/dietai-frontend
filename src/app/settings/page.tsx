@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Lightbulb, History, X } from "lucide-react"; // ✅ เพิ่มไอคอนประวัติและปุ่มปิด
+import { Lightbulb, History, X } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -30,7 +30,6 @@ interface UserProfile {
     goal?: string;
 }
 
-// ✅ เพิ่ม Type สำหรับประวัติสุขภาพ
 interface ProfileHistoryItem {
     id: number;
     weight_kg: number;
@@ -44,7 +43,6 @@ interface ProfileRowProps {
     value: string | number;
 }
 
-// ✅ Function คำนวณอายุจาก birth_date
 function calculateAge(birthDateStr: string | null): number {
     if (!birthDateStr) return 0;
     const birthDate = new Date(birthDateStr);
@@ -80,12 +78,10 @@ export default function SettingsPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    
-    // State สำหรับเปิด/ปิด Tooltip
-    const [showInfoTooltip, setShowInfoTooltip] = useState(false); 
-    const [showTdeeTooltip, setShowTdeeTooltip] = useState(false); 
 
-    // ✅ State สำหรับระบบประวัติสุขภาพ
+    const [showInfoTooltip, setShowInfoTooltip] = useState(false);
+    const [showTdeeTooltip, setShowTdeeTooltip] = useState(false);
+
     const [historyList, setHistoryList] = useState<ProfileHistoryItem[]>([]);
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [loadingHistory, setLoadingHistory] = useState(false);
@@ -96,7 +92,6 @@ export default function SettingsPage() {
     const [height, setHeight] = useState("");
     const [healthInfo, setHealthInfo] = useState("");
 
-    // โหลดข้อมูลโปรไฟล์ตอนเข้าหน้าเว็บ
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (!token) {
@@ -109,11 +104,11 @@ export default function SettingsPage() {
                 const res = await fetch(`${API_BASE}/user/me`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                
+
                 if (res.ok) {
                     const data: UserProfile = await res.json();
                     setProfileData(data);
-                    
+
                     if (data.weight_kg) setWeight(data.weight_kg.toString());
                     if (data.height_cm) setHeight(data.height_cm.toString());
                     if (data.health_info) setHealthInfo(data.health_info);
@@ -133,7 +128,6 @@ export default function SettingsPage() {
         fetchProfile();
     }, [router]);
 
-    // ✅ Effect สำหรับดึงประวัติเมื่อเปิด Modal
     useEffect(() => {
         if (!showHistoryModal) return;
 
@@ -143,7 +137,6 @@ export default function SettingsPage() {
 
             setLoadingHistory(true);
             try {
-                // หมายเหตุ: ตรงนี้อิงตาม Endpoint ที่คุณทำไว้ในหลังบ้าน (เช่น /user/me/history หรือ /me/history)
                 const res = await fetch(`${API_BASE}/user/me/history`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -204,7 +197,7 @@ export default function SettingsPage() {
 
     const calculateCarbPortion = (carbsG: number | null) => {
         if (!carbsG) return "-";
-        return (carbsG / 15).toFixed(1); 
+        return (carbsG / 15).toFixed(1);
     };
 
     if (loading) {
@@ -219,13 +212,13 @@ export default function SettingsPage() {
     return (
         <div className="min-h-screen bg-slate-50 py-8 px-5 font-sans relative">
             <div className="max-w-md mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                
+
                 <div className="flex items-center gap-3 mb-2">
-                    <button 
+                    <button
                         onClick={() => router.back()}
                         className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 transition-colors"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                     </button>
                     <h1 className="text-xl font-bold text-slate-800 tracking-tight">โปรไฟล์และการตั้งค่า</h1>
                 </div>
@@ -236,55 +229,55 @@ export default function SettingsPage() {
                         <Card className="border-slate-100 shadow-sm rounded-2xl bg-white overflow-visible relative z-10">
                             <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between space-y-0">
                                 <CardTitle className="text-lg font-bold text-slate-800">ข้อมูลส่วนตัว</CardTitle>
-                                
-                                <div className="relative">
+
+                                {/* 🛠️ ย้ายปุ่มประวัติขึ้นมาไว้ในฝั่งขวาบนของ Header ร่วมกับหลอดไฟ */}
+                                <div className="flex items-center gap-2">
                                     <button
-                                        onClick={() => setShowInfoTooltip(!showInfoTooltip)}
-                                        onBlur={() => setShowInfoTooltip(false)}
-                                        className="text-amber-400 hover:text-amber-500 transition-colors focus:outline-none flex items-center p-1 rounded-full hover:bg-amber-50"
                                         type="button"
-                                        aria-label="ข้อมูลเพิ่มเติมเกี่ยวกับ BMI และ BMR"
+                                        onClick={() => setShowHistoryModal(true)}
+                                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-emerald-600 bg-slate-100/80 hover:bg-emerald-50/80 px-2.5 py-1.5 rounded-xl transition-all border border-slate-200/40"
                                     >
-                                        <Lightbulb size={20} />
+                                        <History size={13} />
+                                        ดูประวัติ
                                     </button>
 
-                                    {showInfoTooltip && (
-                                        <div className="absolute right-0 top-10 w-64 p-4 bg-slate-800 text-white text-xs rounded-xl shadow-xl z-20 font-normal leading-relaxed animate-in fade-in zoom-in-95">
-                                            <p className="mb-2">
-                                                <strong className="text-amber-300">BMI (ดัชนีมวลกาย):</strong><br/>
-                                                ตัวชี้วัดความสมดุลระหว่างน้ำหนักและส่วนสูง เพื่อประเมินว่าร่างกายอยู่ในเกณฑ์มาตรฐาน
-                                            </p>
-                                            <p>
-                                                <strong className="text-amber-300">BMR:</strong><br/>
-                                                อัตราการเผาผลาญพลังงานพื้นฐาน จำนวนแคลอรีขั้นต่ำที่ร่างกายต้องใช้ในขณะพักผ่อน
-                                            </p>
-                                            <div className="absolute -top-1 right-3 w-3 h-3 bg-slate-800 rotate-45"></div>
-                                        </div>
-                                    )}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowInfoTooltip(!showInfoTooltip)}
+                                            onBlur={() => setShowInfoTooltip(false)}
+                                            className="text-amber-400 hover:text-amber-500 transition-colors focus:outline-none flex items-center p-1 rounded-full hover:bg-amber-50"
+                                            type="button"
+                                            aria-label="ข้อมูลเพิ่มเติมเกี่ยวกับ BMI และ BMR"
+                                        >
+                                            <Lightbulb size={20} />
+                                        </button>
+
+                                        {showInfoTooltip && (
+                                            <div className="absolute right-0 top-10 w-64 p-4 bg-slate-800 text-white text-xs rounded-xl shadow-xl z-20 font-normal leading-relaxed animate-in fade-in zoom-in-95">
+                                                <p className="mb-2">
+                                                    <strong className="text-amber-300">BMI (ดัชนีมวลกาย):</strong><br />
+                                                    ตัวชี้วัดความสมดุลระหว่างน้ำหนักและส่วนสูง เพื่อประเมินว่าร่างกายอยู่ในเกณฑ์มาตรฐาน
+                                                </p>
+                                                <p>
+                                                    <strong className="text-amber-300">BMR:</strong><br />
+                                                    อัตราการเผาผลาญพลังงานพื้นฐาน จำนวนแคลอรีขั้นต่ำที่ร่างกายต้องใช้ในขณะพักผ่อน
+                                                </p>
+                                                <div className="absolute -top-1 right-3 w-3 h-3 bg-slate-800 rotate-45"></div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </CardHeader>
                             <CardContent className="pt-5 pb-5 text-[15px]">
                                 <ProfileRow label="ชื่อผู้ใช้" value={profileData.username || '-'} />
-                                <ProfileRow label="อายุ" value={profileData.birth_date ? `${calculateAge(profileData.birth_date)} ปี` : '-'} />  
-                                <ProfileRow label="วันเกิด" value={profileData.birth_date || '-'} />  
+                                <ProfileRow label="อายุ" value={profileData.birth_date ? `${calculateAge(profileData.birth_date)} ปี` : '-'} />
+                                <ProfileRow label="วันเกิด" value={profileData.birth_date || '-'} />
                                 <ProfileRow label="ส่วนสูง" value={profileData.height_cm ? `${profileData.height_cm} ซม.` : '-'} />
                                 <ProfileRow label="น้ำหนัก" value={profileData.weight_kg ? `${profileData.weight_kg} กก.` : '-'} />
                                 <ProfileRow label="BMI" value={profileData.bmi ? profileData.bmi : calculateBMI(profileData.weight_kg, profileData.height_cm)} />
                                 <ProfileRow label="BMR" value={profileData.bmr ? `${profileData.bmr} kcal` : '-'} />
                                 <ProfileRow label="เป้าหมายด้านสุขภาพ" value={profileData.goal || '-'} />
                                 <ProfileRow label="การแพ้อาหาร" value={profileData.health_info || '-'} />
-                                
-                                {/* 🛠️ เพิ่มปุ่มประวัติสุขภาพ ไว้ที่ท้าย Card ข้อมูลส่วนตัว */}
-                                <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowHistoryModal(true)}
-                                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-emerald-600 bg-slate-100 hover:bg-emerald-50 px-3 py-2 rounded-xl transition-all"
-                                    >
-                                        <History size={14} />
-                                        ดูประวัติการเปลี่ยนแปลง
-                                    </button>
-                                </div>
                             </CardContent>
                         </Card>
 
@@ -292,7 +285,7 @@ export default function SettingsPage() {
                         <Card className="border-emerald-200 shadow-sm rounded-2xl bg-[#f0fdf4] overflow-visible relative z-[5]">
                             <CardHeader className="pb-3 border-b border-emerald-100/60 flex flex-row items-center justify-between space-y-0">
                                 <CardTitle className="text-lg font-bold text-emerald-800">เป้าหมายโภชนาการของคุณ</CardTitle>
-                                
+
                                 <div className="relative">
                                     <button
                                         onClick={() => setShowTdeeTooltip(!showTdeeTooltip)}
@@ -307,11 +300,11 @@ export default function SettingsPage() {
                                     {showTdeeTooltip && (
                                         <div className="absolute right-0 top-10 w-72 p-4 bg-emerald-900 text-white text-xs rounded-xl shadow-xl z-20 font-normal leading-relaxed animate-in fade-in zoom-in-95">
                                             <p className="mb-2">
-                                                <strong className="text-emerald-300">TDEE คืออะไร?</strong><br/>
+                                                <strong className="text-emerald-300">TDEE คืออะไร?</strong><br />
                                                 (Total Daily Energy Expenditure) คือพลังงานรวมทั้งหมดที่ร่างกายต้องใช้ในแต่ละวัน รวมการทำกิจกรรมต่างๆ และการออกกำลังกาย
                                             </p>
                                             <p>
-                                                <strong className="text-emerald-300">ทำไมต้องกินมากกว่า BMR?</strong><br/>
+                                                <strong className="text-emerald-300">ทำไมต้องกินมากกว่า BMR?</strong><br />
                                                 BMR คือพลังงานที่ใช้ตอนอยู่นิ่งๆ แต่ในชีวิตจริงเราต้องขยับตัวตลอดเวลา ร่างกายจึงต้องการพลังงาน (TDEE) ที่สูงกว่า BMR เพื่อให้มีแรงใช้ชีวิต หากกินน้อยกว่า BMR จะทำให้ระบบเผาผลาญพังและสูญเสียมวลกล้ามเนื้อได้
                                             </p>
                                             <div className="absolute -top-1 right-3 w-3 h-3 bg-emerald-900 rotate-45"></div>
@@ -329,7 +322,7 @@ export default function SettingsPage() {
                                     <p><span className="font-medium mr-2">ไขมัน :</span>{profileData?.target_fat ?? '-'} กรัม/วัน</p>
                                 </div>
                             </CardContent>
-                        </Card> 
+                        </Card>
                     </div>
                 )}
 
@@ -337,7 +330,7 @@ export default function SettingsPage() {
                 <Card className="border-slate-100 shadow-sm rounded-2xl bg-white overflow-hidden mt-6">
                     <CardHeader className="bg-emerald-50/50 border-b border-emerald-100/50 pb-5">
                         <CardTitle className="text-base font-semibold text-emerald-800 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
                             แก้ไขข้อมูลร่างกายและสุขภาพ
                         </CardTitle>
                         <CardDescription className="text-xs text-emerald-600/80">
@@ -380,8 +373,8 @@ export default function SettingsPage() {
                                 ></textarea>
                             </div>
 
-                            <Button 
-                                type="submit" 
+                            <Button
+                                type="submit"
                                 disabled={saving}
                                 className="w-full h-12 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm font-semibold transition-all active:scale-[0.98]"
                             >
@@ -398,19 +391,18 @@ export default function SettingsPage() {
             </div>
 
             {/* ---------------------------------------------------------------------- */}
-            {/* 📜 Modal หน้าต่างแสดงประวัติสุขภาพ (แสดงผลเมื่อ showHistoryModal เป็น true) */}
+            {/* 📜 Modal หน้าต่างแสดงประวัติสุขภาพ */}
             {/* ---------------------------------------------------------------------- */}
             {showHistoryModal && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 max-h-[75vh] flex flex-col border border-slate-100 animate-in zoom-in-95 duration-200">
-                        
-                        {/* ส่วนหัว Modal */}
+
                         <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
                             <div className="flex items-center gap-2">
                                 <History size={18} className="text-slate-700" />
                                 <h3 className="text-base font-bold text-slate-800">ประวัติการบันทึกร่างกาย</h3>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setShowHistoryModal(false)}
                                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
                                 type="button"
@@ -419,7 +411,6 @@ export default function SettingsPage() {
                             </button>
                         </div>
 
-                        {/* รายการข้อมูลด้านใน (Scrollable) */}
                         <div className="overflow-y-auto flex-1 space-y-3 pr-1 scrollbar-thin">
                             {loadingHistory ? (
                                 <div className="text-center py-8 text-xs text-slate-400">กำลังโหลดประวัติ...</div>
@@ -428,27 +419,25 @@ export default function SettingsPage() {
                             ) : (
                                 historyList.map((item) => (
                                     <div key={item.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
-                                        
-                                        {/* 📅 แสดง วัน เดือน ปี และเวลา ภาษาไทย */}
+
                                         <div className="font-semibold text-emerald-600 mb-1.5">
-                                            {new Date(item.created_at).toLocaleDateString('th-TH', { 
-                                                year: 'numeric', 
-                                                month: 'short', 
-                                                day: 'numeric' 
+                                            {new Date(item.created_at).toLocaleDateString('th-TH', {
+                                                year: 'numeric',
+                                                month: 'short',
+                                                day: 'numeric'
                                             })}
                                             {" เวลา "}
-                                            {new Date(item.created_at).toLocaleTimeString('th-TH', { 
-                                                hour: '2-digit', 
-                                                minute: '2-digit' 
+                                            {new Date(item.created_at).toLocaleTimeString('th-TH', {
+                                                hour: '2-digit',
+                                                minute: '2-digit'
                                             })} น.
                                         </div>
 
-                                        {/* รายละเอียด */}
                                         <div className="grid grid-cols-2 gap-1 text-slate-600">
                                             <div>⚖️ น้ำหนัก: <span className="font-bold text-slate-800">{item.weight_kg}</span> กก.</div>
                                             <div>📏 ส่วนสูง: <span className="font-bold text-slate-800">{item.height_cm}</span> ซม.</div>
                                         </div>
-                                        
+
                                         {item.health_info && (
                                             <div className="text-[11px] text-slate-500 mt-1.5 pt-1 border-t border-slate-200/60 border-dashed break-words">
                                                 ℹ️ สุขภาพ: {item.health_info}
@@ -459,9 +448,8 @@ export default function SettingsPage() {
                             )}
                         </div>
 
-                        {/* ปุ่มปิดด้านล่าง */}
                         <div className="mt-4 pt-2 border-t border-slate-100">
-                            <Button 
+                            <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => setShowHistoryModal(false)}
