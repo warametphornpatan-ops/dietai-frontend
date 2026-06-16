@@ -31,8 +31,8 @@ interface FoodFromDB {
     ThaiName: string;
     EnglishName: string;
     Calories: number;
-    Nutrition: string; 
-    Category: string;  
+    Nutrition: string;
+    Category: string;
     bmi_group: string;
 }
 
@@ -172,11 +172,10 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                             <button
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
-                                className={`text-[10px] px-2.5 py-1 rounded-full transition-all border ${
-                                    activeCategory === cat.id
+                                className={`text-[10px] px-2.5 py-1 rounded-full transition-all border ${activeCategory === cat.id
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold"
                                         : "bg-white text-gray-500 border-transparent hover:bg-gray-50"
-                                }`}
+                                    }`}
                             >
                                 {cat.name}
                             </button>
@@ -200,7 +199,13 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                         <span className="text-lg">🚫</span>
                         <div>
                             <p className="font-bold mb-0.5">
-                                ⚠️ การแพ้อาหารของคุณ: <span className="underline decoration-wavy font-extrabold text-rose-800">{user.health_info}</span>
+                                ⚠️ การแพ้อาหารของคุณ:{" "}
+                                <span
+                                    spellCheck="false"
+                                    className="underline decoration-wavy font-extrabold text-rose-800"
+                                >
+                                    {user.health_info}
+                                </span>
                             </p>
                             <p className="text-[11px] text-rose-600/90 font-medium">
                             </p>
@@ -228,10 +233,10 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                                 let parsedNutrition = { protein: 0, carbohydrates: 0, fat: 0 };
                                 try {
                                     if (food.Nutrition) {
-                                        const cleaned = typeof food.Nutrition === "string" 
-                                            ? JSON.parse(food.Nutrition) 
+                                        const cleaned = typeof food.Nutrition === "string"
+                                            ? JSON.parse(food.Nutrition)
                                             : food.Nutrition;
-                                        
+
                                         parsedNutrition = {
                                             protein: cleaned.protein ?? cleaned.Protein ?? 0,
                                             carbohydrates: cleaned.carbohydrates ?? cleaned.Carbohydrates ?? 0,
@@ -250,7 +255,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                                         <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-emerald-50 relative flex items-center justify-center text-2xl font-bold">
                                             {currentMenuId ? (
                                                 <img
-                                                    src={`/foods/${currentMenuId}.jpg`} 
+                                                    src={`/foods/${currentMenuId}.jpg`}
                                                     alt={food.ThaiName}
                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform absolute inset-0 z-10"
                                                     onError={(e) => {
@@ -258,7 +263,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                                                     }}
                                                 />
                                             ) : null}
-                                            
+
                                             <span className="select-none">
                                                 {food.Category === "อาหารคาว" ? "🍱" : food.Category === "ผลไม้" ? "🍎" : "🥤"}
                                             </span>
@@ -295,9 +300,9 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
                         <div className="bg-gray-50/60 rounded-xl p-2.5 border border-gray-100">
                             <span className="font-bold text-blue-600 block mb-1">เคล็ดลับเลือกกินแป้งและน้ำตาลเพื่อสุขภาพดี</span>
-                            <a 
-                                href="https://n9.cl/eqfpd" 
-                                target="_blank" 
+                            <a
+                                href="https://n9.cl/eqfpd"
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-gray-600 hover:text-emerald-600 font-medium line-clamp-1 hover:underline"
                             >
@@ -307,9 +312,9 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
 
                         <div className="md:col-span-2 bg-gray-50/60 rounded-xl p-2.5 border border-gray-100">
                             <span className="font-bold text-emerald-600 block mb-1">เกณฑ์มาตรฐาน BMI และการดูแลสุขภาพทั่วไป</span>
-                            <a 
-                                href="https://ddc.moph.go.th/uploads/publish/1064820201022081932.pdf" 
-                                target="_blank" 
+                            <a
+                                href="https://ddc.moph.go.th/uploads/publish/1064820201022081932.pdf"
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-gray-600 hover:text-emerald-600 font-medium line-clamp-1 hover:underline"
                             >
