@@ -21,7 +21,7 @@ interface UserProfile {
     target_carbs: number | null;
     target_protein: number | null;
     target_fat: number | null;
-    age: number | null;
+    birth_date: string | null;  // ✅ เปลี่ยนจาก age
     weight_kg: number | null;
     height_cm: number | null;
     health_info: string | null;
@@ -33,6 +33,19 @@ interface UserProfile {
 interface ProfileRowProps {
     label: string;
     value: string | number;
+}
+
+// ✅ เพิ่ม: Function คำนวณอายุจาก birth_date
+function calculateAge(birthDateStr: string | null): number {
+    if (!birthDateStr) return 0;
+    const birthDate = new Date(birthDateStr);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    return Math.max(0, age);
 }
 
 // ----------------------------------------------------------------------
@@ -65,7 +78,7 @@ export default function SettingsPage() {
 
     const [profileData, setProfileData] = useState<UserProfile | null>(null);
 
-    const [age, setAge] = useState("");
+    const [birthDate, setBirthDate] = useState("");  // ✅ เปลี่ยนจาก age เป็น birthDate
     const [weight, setWeight] = useState("");
     const [height, setHeight] = useState("");
     const [healthInfo, setHealthInfo] = useState("");
@@ -79,7 +92,6 @@ export default function SettingsPage() {
 
         async function fetchProfile() {
             try {
-                // 🛠️ แก้ไขจุดตาย: เปลี่ยนจาก /users/me เป็น /user/me (ไม่มี s) และยิงตรงพอร์ต 8000
                 const res = await fetch(`${API_BASE}/user/me`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -88,7 +100,7 @@ export default function SettingsPage() {
                     const data: UserProfile = await res.json();
                     setProfileData(data);
                     
-                    if (data.age) setAge(data.age.toString());
+                    if (data.birth_date) setBirthDate(data.birth_date);  // ✅ เปลี่ยน
                     if (data.weight_kg) setWeight(data.weight_kg.toString());
                     if (data.height_cm) setHeight(data.height_cm.toString());
                     if (data.health_info) setHealthInfo(data.health_info);
@@ -114,7 +126,6 @@ export default function SettingsPage() {
         const token = localStorage.getItem("token");
 
         try {
-            // 🔒 บังคับยิงเข้าหลังบ้านพอร์ต 8000 ตรง ๆ เช่นกัน
             const res = await fetch(`${API_BASE}/user/me/profile`, {
                 method: "PUT",
                 headers: {
@@ -122,7 +133,7 @@ export default function SettingsPage() {
                     Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    age: parseInt(age),
+                    birth_date: birthDate,  // ✅ เปลี่ยนจาก age เป็น birth_date
                     weight_kg: parseFloat(weight),
                     height_cm: parseFloat(height),
                     health_info: healthInfo
@@ -212,7 +223,8 @@ export default function SettingsPage() {
                             </CardHeader>
                             <CardContent className="pt-5 pb-5 text-[15px]">
                                 <ProfileRow label="ชื่อผู้ใช้" value={profileData.username || '-'} />
-                                <ProfileRow label="อายุ" value={profileData.age ? `${profileData.age} ปี` : '-'} />
+                                <ProfileRow label="อายุ" value={profileData.birth_date ? `${calculateAge(profileData.birth_date)} ปี` : '-'} />  {/* ✅ คำนวณจาก birth_date */}
+                                <ProfileRow label="วันเกิด" value={profileData.birth_date || '-'} />  {/* ✅ แสดง birth_date */}
                                 <ProfileRow label="ส่วนสูง" value={profileData.height_cm ? `${profileData.height_cm} ซม.` : '-'} />
                                 <ProfileRow label="น้ำหนัก" value={profileData.weight_kg ? `${profileData.weight_kg} กก.` : '-'} />
                                 <ProfileRow label="BMI" value={profileData.bmi ? profileData.bmi : calculateBMI(profileData.weight_kg, profileData.height_cm)} />
@@ -281,12 +293,14 @@ export default function SettingsPage() {
                     <CardContent className="pt-6">
                         <form onSubmit={handleSave} className="space-y-5">
                             <div className="grid grid-cols-2 gap-4">
+                                {/* ✅ เปลี่ยนจาก age input เป็น birth_date date picker */}
                                 <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">อายุ (ปี)</label>
+                                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">วันเดือนปีเกิด</label>
                                     <Input
-                                        type="number" required
-                                        value={age}
-                                        onChange={(e) => setAge(e.target.value)}
+                                        type="date"
+                                        required
+                                        value={birthDate}
+                                        onChange={(e) => setBirthDate(e.target.value)}
                                         className="bg-slate-50 border-slate-200 h-11 focus-visible:ring-emerald-500"
                                     />
                                 </div>
