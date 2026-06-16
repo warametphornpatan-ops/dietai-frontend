@@ -78,7 +78,6 @@ export default function SettingsPage() {
 
     const [profileData, setProfileData] = useState<UserProfile | null>(null);
 
-    const [birthDate, setBirthDate] = useState("");  // ✅ เปลี่ยนจาก age เป็น birthDate
     const [weight, setWeight] = useState("");
     const [height, setHeight] = useState("");
     const [healthInfo, setHealthInfo] = useState("");
@@ -100,7 +99,6 @@ export default function SettingsPage() {
                     const data: UserProfile = await res.json();
                     setProfileData(data);
                     
-                    if (data.birth_date) setBirthDate(data.birth_date);  // ✅ เปลี่ยน
                     if (data.weight_kg) setWeight(data.weight_kg.toString());
                     if (data.height_cm) setHeight(data.height_cm.toString());
                     if (data.health_info) setHealthInfo(data.health_info);
@@ -133,7 +131,6 @@ export default function SettingsPage() {
                     Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    birth_date: birthDate,  // ✅ เปลี่ยนจาก age เป็น birth_date
                     weight_kg: parseFloat(weight),
                     height_cm: parseFloat(height),
                     health_info: healthInfo
@@ -293,17 +290,6 @@ export default function SettingsPage() {
                     <CardContent className="pt-6">
                         <form onSubmit={handleSave} className="space-y-5">
                             <div className="grid grid-cols-2 gap-4">
-                                {/* ✅ เปลี่ยนจาก age input เป็น birth_date date picker */}
-                                <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">วันเดือนปีเกิด</label>
-                                    <Input
-                                        type="date"
-                                        required
-                                        value={birthDate}
-                                        onChange={(e) => setBirthDate(e.target.value)}
-                                        className="bg-slate-50 border-slate-200 h-11 focus-visible:ring-emerald-500"
-                                    />
-                                </div>
                                 <div className="space-y-1.5 col-span-2 sm:col-span-1">
                                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">ส่วนสูง (ซม.)</label>
                                     <Input
@@ -313,7 +299,7 @@ export default function SettingsPage() {
                                         className="bg-slate-50 border-slate-200 h-11 focus-visible:ring-emerald-500"
                                     />
                                 </div>
-                                <div className="space-y-1.5 col-span-2">
+                                <div className="space-y-1.5 col-span-2 sm:col-span-1">
                                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">น้ำหนักปัจจุบัน (กก.)</label>
                                     <Input
                                         type="number" step="0.1" required
