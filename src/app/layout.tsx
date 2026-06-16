@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import UrlMasker from "./UrlMasker"; // ✨ แก้เป็นจุดเดียวแล้ว เพื่อให้อ่านไฟล์ระดับเดียวกันได้ถูกต้อง
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,6 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <UrlMasker /> {/* ซ่อน Path เงียบ ๆ อยู่เบื้องหลัง */}
         {children}
       </body>
     </html>
