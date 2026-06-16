@@ -1,6 +1,8 @@
 "use client";
 
+import { validateThaiID } from "@/lib/validateThaiID";
 import { useState, useEffect } from "react";
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -78,6 +80,7 @@ export default function AdminDashboardPage() {
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "ok" | "error">("idle");
   const [usernameErrorDetail, setUsernameErrorDetail] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState<AdminForm>({
     first_name: "", last_name: "", citizen_id: "",
@@ -189,6 +192,14 @@ export default function AdminDashboardPage() {
 
   async function handleAddAdmin(e: React.FormEvent) {
     e.preventDefault();
+
+    // ✅ ตรวจสอบเลขบัตรประชาชนด้วย validateThaiID
+    const result = validateThaiID(form.citizen_id);
+    if (!result.isValid) {
+      setFieldErrors(p => ({ ...p, citizen_id: result.message }));
+      return;
+    }
+
     const cd = form.citizen_id.replace(/\D/g, "");
     if (cd.length !== 13) { alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก"); return; }
     if (!form.email) { alert("กรุณากรอกอีเมล"); return; }
@@ -212,6 +223,7 @@ export default function AdminDashboardPage() {
       if (!res.ok) { const d = await res.json(); alert(d.detail || "เพิ่มผู้ดูแลระบบไม่สำเร็จ"); return; }
       alert("✅ เพิ่มผู้ดูแลระบบสำเร็จ! ระบบได้ส่งอีเมลคำเชิญให้ตั้งรหัสผ่านเรียบร้อยแล้ว");
       setForm({ first_name: "", last_name: "", citizen_id: "", username: "", email: "" });
+      setFieldErrors({});
       setUsernameStatus("idle");
       setUsernameErrorDetail("");
       fetchAllStaff(adminOrgCode);
@@ -408,7 +420,16 @@ export default function AdminDashboardPage() {
               </div>
               <Field label="เลขบัตรประชาชน" required>
                 <SI required maxLength={13} placeholder="13 หลัก" inputMode="numeric"
-                  value={form.citizen_id} onChange={e => setForm(p => ({ ...p, citizen_id: e.target.value.replace(/\D/g, "") }))} />
+                  value={form.citizen_id}
+                  onChange={e => {
+                    setForm(p => ({ ...p, citizen_id: e.target.value.replace(/\D/g, "") }));
+                    setFieldErrors(p => ({ ...p, citizen_id: "" }));
+                  }} />
+                {fieldErrors.citizen_id && (
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444" }}>
+                    ❌ {fieldErrors.citizen_id}
+                  </p>
+                )}
               </Field>
               <Field label="อีเมล" required hint="(ระบบจะส่งลิงก์ตั้งรหัสผ่านไปที่นี่)">
                 <SI required type="email" placeholder="admin@hospital.com" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />

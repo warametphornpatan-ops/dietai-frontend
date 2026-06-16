@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+import { validateThaiID } from "@/lib/validateThaiID";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -106,7 +107,13 @@ export default function ResetPasswordPage() {
 
     setCheckingIdCard(true);
     setFieldErrors(p => ({ ...p, identifier: "" }));
-
+    const result = validateThaiID(form.identifier);
+  if (!result.isValid) {
+    setFieldErrors(p => ({ ...p, identifier: result.message }));
+    setCheckingIdCard(false);
+    return;
+  }
+    const digitsOnly = form.identifier.replace(/\D/g, "");
     const endpoint = role === "staff" ? "/staff/check-idcard" : "/users/check-idcard";
 
     try {

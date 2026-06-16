@@ -3,6 +3,7 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import { createClient } from "@supabase/supabase-js";
+import { validateThaiID } from "@/lib/validateThaiID";
 
 const SUPABASE_URL = "https://tjabazzbmxxbumokdmxi.supabase.co";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -959,7 +960,10 @@ export default function RegisterWizard() {
                 placeholder="กรอกตัวเลข 13 หลัก เช่น 1100100234567"
                 {...register("citizenID", {
                   required: "กรุณากรอกเลขบัตรประชาชน",
-                  pattern: { value: /^[0-9]{13}$/, message: "ต้องเป็นตัวเลข 13 หลัก" },
+                  validate: (v) => {
+                    const result = validateThaiID(v);
+                    return result.isValid || result.message;
+                  },
                 })}
                 style={inputStyle}
                 onFocus={(e) => (e.currentTarget.style.borderColor = "#16a360")}
