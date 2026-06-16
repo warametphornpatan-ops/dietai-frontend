@@ -202,7 +202,8 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                                 ⚠️ การแพ้อาหารของคุณ:{" "}
                                 <span
                                     spellCheck="false"
-                                    className="underline decoration-wavy font-extrabold text-rose-800"
+                                    lang="zxx"
+                                    className="font-extrabold text-rose-800"
                                 >
                                     {user.health_info}
                                 </span>
