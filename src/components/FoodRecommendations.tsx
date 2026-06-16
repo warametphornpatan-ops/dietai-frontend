@@ -200,10 +200,9 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                         <span className="text-lg">🚫</span>
                         <div>
                             <p className="font-bold mb-0.5">
-                                ⚠️ ประวัติการแพ้อาหารของคุณ: <span className="underline decoration-wavy font-extrabold text-rose-800">{user.health_info}</span>
+                                ⚠️ การแพ้อาหารของคุณ: <span className="underline decoration-wavy font-extrabold text-rose-800">{user.health_info}</span>
                             </p>
                             <p className="text-[11px] text-rose-600/90 font-medium">
-                                *ระบบตรวจพบสารก่อภูมิแพ้ และได้ทำการซ่อนเมนูที่เป็นอันตรายต่อคุณออกจากตารางแนะนำเรียบร้อยแล้ว
                             </p>
                         </div>
                     </div>
