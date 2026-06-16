@@ -17,6 +17,7 @@ interface User {
     target_carbs?: number;
     target_protein?: number;
     target_fat?: number;
+    health_info?: string; // รองรับข้อมูลการแพ้อาหารจากระบบหลังบ้าน
 }
 
 interface FoodRecommendationsProps {
@@ -120,7 +121,23 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
         }
     }, [bmi]);
 
-    const filteredFoods = foods.filter(food => food.Category === activeCategory);
+    // --- ส่วนคัดกรองเมนูตามประเภทและตรวจสอบประวัติการแพ้อาหาร ---
+    let filteredFoods = foods.filter(food => food.Category === activeCategory);
+
+    if (user?.health_info && user.health_info.trim() !== "") {
+        // แยกคำกรณีผู้ใช้ใส่คำแพ้อาหารหลายตัว เช่น "กุ้ง, ปลา, นม"
+        const allergicKeywords = user.health_info
+            .toLowerCase()
+            .split(/[,、，\s+]/)
+            .map(keyword => keyword.trim())
+            .filter(keyword => keyword.length > 0);
+
+        // คัดเอาเฉพาะอาหารที่ไม่มีคำที่แพ้อยู่ในชื่อเมนูภาษาไทยและภาษาอังกฤษ
+        filteredFoods = filteredFoods.filter(food => {
+            const foodNameText = `${food.ThaiName} ${food.EnglishName || ""}`.toLowerCase();
+            return !allergicKeywords.some(keyword => foodNameText.includes(keyword));
+        });
+    }
 
     const getBmiStatusLabel = () => {
         if (!bmi || bmi <= 0) return "รอข้อมูล BMI";
@@ -174,6 +191,21 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                         <p>
                             <span className="font-bold">{remark.title}:</span> {remark.desc}
                         </p>
+                    </div>
+                )}
+
+                {/* 🚫 กล่องแจ้งเตือนรายการแพ้อาหารและการคัดกรองอัตโนมัติ */}
+                {user?.health_info && user.health_info.trim() !== "" && (
+                    <div className="mt-3 p-3 rounded-xl border border-rose-100 bg-rose-50/70 text-rose-700 shadow-sm flex gap-3 items-start text-sm leading-relaxed">
+                        <span className="text-lg">🚫</span>
+                        <div>
+                            <p className="font-bold mb-0.5">
+                                ⚠️ ประวัติการแพ้อาหารของคุณ: <span className="underline decoration-wavy font-extrabold text-rose-800">{user.health_info}</span>
+                            </p>
+                            <p className="text-[11px] text-rose-600/90 font-medium">
+                                *ระบบตรวจพบสารก่อภูมิแพ้ และได้ทำการซ่อนเมนูที่เป็นอันตรายต่อคุณออกจากตารางแนะนำเรียบร้อยแล้ว
+                            </p>
+                        </div>
                     </div>
                 )}
 
@@ -251,20 +283,19 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                         </div>
                     ) : (
                         <div className="text-center py-8 text-gray-400 text-sm">
-                            ไม่มีรายการในหมวดหมู่นี้ตามข้อจำกัดโภชนาการของคุณ
+                            ไม่มีรายการในหมวดหมู่นี้ตามข้อจำกัดโภชนาการและประวัติการแพ้อาหารของคุณ
                         </div>
                     )}
                 </div>
 
-                {/* 2. ส่วนแสดงผลลิงก์อ้างอิงแหล่งข้อมูลทางการแพทย์ (อยู่ใต้เมนูอาหาร) */}
+                {/* 2. ส่วนแสดงผลลิงก์อ้างอิงแหล่งข้อมูลทางการแพทย์ */}
                 <div className="mt-2 pt-4 border-t border-gray-100">
                     <h5 className="text-xs font-semibold text-gray-500 mb-3 flex items-center gap-1.5">
                         🩺 แหล่งอ้างอิงข้อมูลโภชนาการทางการแพทย์
                     </h5>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
-                        {/* กลุ่ม BMI ต่ำกว่าเกณฑ์ */}
                         <div className="bg-gray-50/60 rounded-xl p-2.5 border border-gray-100">
-                            <span className="font-bold text-blue-600 block mb-1">คล็ดลับเลือกกินแป้งและน้ำตาลเพื่อสุขภาพดี</span>
+                            <span className="font-bold text-blue-600 block mb-1">เคล็ดลับเลือกกินแป้งและน้ำตาลเพื่อสุขภาพดี</span>
                             <a 
                                 href="https://n9.cl/eqfpd" 
                                 target="_blank" 
@@ -275,8 +306,6 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                             </a>
                         </div>
 
-
-                        {/* เกณฑ์มาตรฐานทั่วไป */}
                         <div className="md:col-span-2 bg-gray-50/60 rounded-xl p-2.5 border border-gray-100">
                             <span className="font-bold text-emerald-600 block mb-1">เกณฑ์มาตรฐาน BMI และการดูแลสุขภาพทั่วไป</span>
                             <a 
