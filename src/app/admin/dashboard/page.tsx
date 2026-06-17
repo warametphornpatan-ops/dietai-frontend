@@ -71,11 +71,24 @@ type OrgResponse = {
   name: string;
 };
 
+// ✅ Type สำหรับ Feature ค้นหาผู้ใช้
+type UserAccountItem = {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+};
+
+type UsersListResponse = {
+  users: UserAccountItem[];
+  total: number;
+};
+
 type AdminForm = {
-  first_name: string; 
-  last_name: string; 
+  first_name: string;
+  last_name: string;
   citizen_id: string;
-  username: string; 
+  username: string;
   email: string;
 };
 
@@ -93,41 +106,41 @@ type AdminProfileForm = {
 };
 
 const inputBase: React.CSSProperties = {
-  width: "100%", 
-  padding: "10px 13px", 
+  width: "100%",
+  padding: "10px 13px",
   borderRadius: 10,
-  border: "1.5px solid #e2e8f0", 
+  border: "1.5px solid #e2e8f0",
   background: "#f8fafc",
-  color: "#1e293b", 
-  fontSize: 14, 
+  color: "#1e293b",
+  fontSize: 14,
   outline: "none",
-  transition: "border-color 0.2s, background 0.2s", 
+  transition: "border-color 0.2s, background 0.2s",
   boxSizing: "border-box",
 };
 
 function SI(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <input 
-      {...props} 
+    <input
+      {...props}
       style={{ ...inputBase, ...props.style }}
-      onFocus={e => { 
-        e.currentTarget.style.borderColor = "#3b82f6"; 
-        e.currentTarget.style.background = "#eff6ff"; 
-        props.onFocus?.(e); 
+      onFocus={e => {
+        e.currentTarget.style.borderColor = "#3b82f6";
+        e.currentTarget.style.background = "#eff6ff";
+        props.onFocus?.(e);
       }}
-      onBlur={e => { 
-        e.currentTarget.style.borderColor = "#e2e8f0"; 
-        e.currentTarget.style.background = "#f8fafc"; 
-        props.onBlur?.(e); 
+      onBlur={e => {
+        e.currentTarget.style.borderColor = "#e2e8f0";
+        e.currentTarget.style.background = "#f8fafc";
+        props.onBlur?.(e);
       }}
     />
   );
 }
 
 function Field({ label, hint, required: req, children }: {
-  label: string; 
-  hint?: string; 
-  required?: boolean; 
+  label: string;
+  hint?: string;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -160,26 +173,26 @@ export default function AdminDashboardPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState<AdminForm>({
-    first_name: "", 
-    last_name: "", 
+    first_name: "",
+    last_name: "",
     citizen_id: "",
-    username: "", 
+    username: "",
     email: "",
   });
 
   const [editingRow, setEditingRow] = useState<StaffRow | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
-    first_name: "", 
-    last_name: "", 
-    email: "", 
+    first_name: "",
+    last_name: "",
+    email: "",
     position: "",
   });
   const [editLoading, setEditLoading] = useState(false);
 
   const [showAdminProfileModal, setShowAdminProfileModal] = useState(false);
   const [adminProfileForm, setAdminProfileForm] = useState<AdminProfileForm>({
-    first_name: "", 
-    last_name: "", 
+    first_name: "",
+    last_name: "",
     email: "",
   });
   const [adminProfileLoading, setAdminProfileLoading] = useState(false);
@@ -187,6 +200,12 @@ export default function AdminDashboardPage() {
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [resolvingRequestId, setResolvingRequestId] = useState<number | null>(null);
+
+  // ✅ State สำหรับ Feature ค้นหาผู้ใช้
+  const [showUsersModal, setShowUsersModal] = useState(false);
+  const [allUsers, setAllUsers] = useState<UserAccountItem[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
 
   function getAuthHeaders(extraHeaders = {}) {
     const token = localStorage.getItem("token");
@@ -217,20 +236,20 @@ export default function AdminDashboardPage() {
       } else if (res.status === 401) {
         console.warn("Token หมดอายุหรือไม่ได้เข้าสู่ระบบ");
       }
-    } catch (e) { 
-      console.error("โหลดข้อมูลแอดมินไม่สำเร็จ", e); 
+    } catch (e) {
+      console.error("โหลดข้อมูลแอดมินไม่สำเร็จ", e);
     }
   }
 
   async function fetchOrgName(code: string) {
     try {
       const res = await fetch(`${API_URL}/organizations/${code}`, { headers: getAuthHeaders() });
-      if (res.ok) { 
-        const d: OrgResponse = await res.json(); 
-        setAdminOrgName(d.name); 
+      if (res.ok) {
+        const d: OrgResponse = await res.json();
+        setAdminOrgName(d.name);
       }
-    } catch (e) { 
-      console.error(e); 
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -245,30 +264,30 @@ export default function AdminDashboardPage() {
       const doctorsData: DoctorsListResponse = doctorsRes.ok ? await doctorsRes.json() : { doctors: [] };
 
       const adminRows: StaffRow[] = (adminsData.admins || []).map((a: AdminListItem) => ({
-        id: a.id, 
-        org_code: a.org_code, 
+        id: a.id,
+        org_code: a.org_code,
         first_name: a.first_name,
-        last_name: a.last_name, 
-        username: a.username, 
+        last_name: a.last_name,
+        username: a.username,
         email: a.email,
-        position: "ผู้ดูแลระบบ", 
+        position: "ผู้ดูแลระบบ",
         role: "admin" as const,
       }));
 
       const doctorRows: StaffRow[] = (doctorsData.doctors || []).map((d: DoctorListItem) => ({
-        id: d.doctor_id, 
-        org_code: d.org_code, 
+        id: d.doctor_id,
+        org_code: d.org_code,
         first_name: d.first_name,
-        last_name: d.last_name, 
-        username: d.username, 
+        last_name: d.last_name,
+        username: d.username,
         email: d.email,
-        position: d.position || null, 
+        position: d.position || null,
         role: "doctor" as const,
       }));
 
       setStaffList([...adminRows, ...doctorRows]);
-    } catch (e) { 
-      console.error(e); 
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -295,9 +314,30 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // ✅ Feature ค้นหาผู้ใช้: โหลด user ทั้งหมด
+  async function handleOpenUsersModal() {
+    setShowUsersModal(true);
+    setUserSearch("");
+    setUsersLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/admins/users`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data: UsersListResponse = await res.json();
+        setAllUsers(data.users || []);
+      } else {
+        alert("ไม่สามารถโหลดข้อมูลผู้ใช้ได้");
+      }
+    } catch (e) {
+      console.error("โหลดรายชื่อผู้ใช้ไม่สำเร็จ", e);
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+
   async function handleResolveRequest(requestId: number) {
     if (!confirm("ยืนยันว่าติดต่อกลับและแก้ไขปัญหาคำร้องเรียนนี้เรียบร้อยแล้ว?")) return;
-    
+
     setResolvingRequestId(requestId);
     try {
       const res = await fetch(`${API_URL}/admins/support-requests/${requestId}/resolve`, {
@@ -331,8 +371,8 @@ export default function AdminDashboardPage() {
       }
     } catch (e) {
       alert("เกิดข้อผิดพลาด: " + (e instanceof Error ? e.message : "Unknown error"));
-    } finally { 
-      setApprovingId(null); 
+    } finally {
+      setApprovingId(null);
     }
   }
 
@@ -349,16 +389,16 @@ export default function AdminDashboardPage() {
       }
     } catch (e) {
       alert("เกิดข้อผิดพลาด: " + (e instanceof Error ? e.message : "Unknown error"));
-    } finally { 
-      setRejectingId(null); 
+    } finally {
+      setRejectingId(null);
     }
   }
 
   async function handleCheckUsername() {
     const username = form.username.trim();
-    if (!username) { 
-      alert("กรุณากรอก Username"); 
-      return; 
+    if (!username) {
+      alert("กรุณากรอก Username");
+      return;
     }
     setCheckingUsername(true);
     setUsernameStatus("idle");
@@ -375,8 +415,8 @@ export default function AdminDashboardPage() {
     } catch {
       setUsernameStatus("error");
       setUsernameErrorDetail("เกิดข้อผิดพลาดในการตรวจสอบ");
-    } finally { 
-      setCheckingUsername(false); 
+    } finally {
+      setCheckingUsername(false);
     }
   }
 
@@ -388,21 +428,21 @@ export default function AdminDashboardPage() {
       return;
     }
     const cd = form.citizen_id.replace(/\D/g, "");
-    if (cd.length !== 13) { 
-      alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก"); 
-      return; 
+    if (cd.length !== 13) {
+      alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
+      return;
     }
-    if (!form.email) { 
-      alert("กรุณากรอกอีเมล"); 
-      return; 
+    if (!form.email) {
+      alert("กรุณากรอกอีเมล");
+      return;
     }
-    if (usernameStatus !== "ok") { 
-      alert("กรุณาตรวจสอบ Username ก่อน"); 
-      return; 
+    if (usernameStatus !== "ok") {
+      alert("กรุณาตรวจสอบ Username ก่อน");
+      return;
     }
-    if (!adminOrgCode) { 
-      alert("ไม่พบรหัสหน่วยงาน"); 
-      return; 
+    if (!adminOrgCode) {
+      alert("ไม่พบรหัสหน่วยงาน");
+      return;
     }
     if (loading) return;
     setLoading(true);
@@ -419,10 +459,10 @@ export default function AdminDashboardPage() {
           username: form.username.trim(),
         }),
       });
-      if (!res.ok) { 
-        const d: { detail?: string } = await res.json(); 
-        alert(d.detail || "เพิ่มผู้ดูแลระบบไม่สำเร็จ"); 
-        return; 
+      if (!res.ok) {
+        const d: { detail?: string } = await res.json();
+        alert(d.detail || "เพิ่มผู้ดูแลระบบไม่สำเร็จ");
+        return;
       }
       alert("✅ เพิ่มผู้ดูแลระบบสำเร็จ! ระบบได้ส่งอีเมลคำเชิญให้ตั้งรหัสผ่านเรียบร้อยแล้ว");
       setForm({ first_name: "", last_name: "", citizen_id: "", username: "", email: "" });
@@ -430,11 +470,11 @@ export default function AdminDashboardPage() {
       setUsernameStatus("idle");
       setUsernameErrorDetail("");
       fetchAllStaff(adminOrgCode);
-    } catch { 
-      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); 
+    } catch {
+      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
     }
-    finally { 
-      setLoading(false); 
+    finally {
+      setLoading(false);
     }
   }
 
@@ -545,8 +585,8 @@ export default function AdminDashboardPage() {
 
     if (!confirm(`ยืนยันลบ "${row.first_name} ${row.last_name}" ออกจากระบบ?`)) return;
 
-    const url = row.role === "admin" 
-      ? `${API_URL}/admins/${row.id}` 
+    const url = row.role === "admin"
+      ? `${API_URL}/admins/${row.id}`
       : `${API_URL}/admins/doctors/${row.id}`;
 
     try {
@@ -567,6 +607,13 @@ export default function AdminDashboardPage() {
     s.last_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // ✅ กรองผู้ใช้ตามคำค้นหา (ฝั่ง frontend)
+  const filteredUsers = allUsers.filter(u =>
+    u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+    u.username.toLowerCase().includes(userSearch.toLowerCase()) ||
+    u.email.toLowerCase().includes(userSearch.toLowerCase())
+  );
+
   const avatarColors = ["#3b82f6", "#6366f1", "#0ea5e9", "#8b5cf6", "#2563eb"];
 
   return (
@@ -576,11 +623,11 @@ export default function AdminDashboardPage() {
         {/* ✅ HEADER */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ 
-              width: 44, height: 44, borderRadius: 14, 
-              background: "linear-gradient(135deg,#3b82f6,#2563eb)", 
-              display: "flex", alignItems: "center", justifyContent: "center", 
-              fontSize: 20, boxShadow: "0 4px 14px rgba(59,130,246,0.35)" 
+            <div style={{
+              width: 44, height: 44, borderRadius: 14,
+              background: "linear-gradient(135deg,#3b82f6,#2563eb)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 20, boxShadow: "0 4px 14px rgba(59,130,246,0.35)"
             }}>🏥</div>
             <div>
               <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#0f172a" }}>
@@ -592,43 +639,43 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button 
+            <button
               onClick={handleOpenAdminProfile}
-              style={{ 
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 6, 
-                width: 40, height: 40, borderRadius: 10, border: "1.5px solid #e2e8f0", 
-                background: "#fff", color: "#64748b", fontSize: 18, fontWeight: 500, 
-                cursor: "pointer", transition: "all 0.2s", 
-                boxShadow: "0 1px 4px rgba(0,0,0,0.06)" 
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                width: 40, height: 40, borderRadius: 10, border: "1.5px solid #e2e8f0",
+                background: "#fff", color: "#64748b", fontSize: 18, fontWeight: 500,
+                cursor: "pointer", transition: "all 0.2s",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.06)"
               }}
-              onMouseEnter={e => { 
-                e.currentTarget.style.borderColor = "#3b82f6"; 
-                e.currentTarget.style.color = "#3b82f6"; 
-                e.currentTarget.style.background = "#eff6ff"; 
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = "#3b82f6";
+                e.currentTarget.style.color = "#3b82f6";
+                e.currentTarget.style.background = "#eff6ff";
               }}
-              onMouseLeave={e => { 
-                e.currentTarget.style.borderColor = "#e2e8f0"; 
-                e.currentTarget.style.color = "#64748b"; 
-                e.currentTarget.style.background = "#fff"; 
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = "#e2e8f0";
+                e.currentTarget.style.color = "#64748b";
+                e.currentTarget.style.background = "#fff";
               }}
               title="แก้ไขข้อมูลส่วนตัว">
               ⚙️
             </button>
-            <button 
+            <button
               onClick={() => { localStorage.removeItem("token"); window.location.href = "/login"; }}
-              style={{ 
-                display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", 
-                borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", 
-                color: "#64748b", fontSize: 13, fontWeight: 500, cursor: "pointer", 
-                transition: "all 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" 
+              style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "8px 16px",
+                borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff",
+                color: "#64748b", fontSize: 13, fontWeight: 500, cursor: "pointer",
+                transition: "all 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.06)"
               }}
-              onMouseEnter={e => { 
-                e.currentTarget.style.borderColor = "#fca5a5"; 
-                e.currentTarget.style.color = "#ef4444"; 
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = "#fca5a5";
+                e.currentTarget.style.color = "#ef4444";
               }}
-              onMouseLeave={e => { 
-                e.currentTarget.style.borderColor = "#e2e8f0"; 
-                e.currentTarget.style.color = "#64748b"; 
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = "#e2e8f0";
+                e.currentTarget.style.color = "#64748b";
               }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -703,7 +750,7 @@ export default function AdminDashboardPage() {
 
           {/* ✅ MAIN CONTENT */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            
+
             {/* ✅ PENDING DOCTOR APPLICATIONS */}
             {pendingApplications.length > 0 && (
               <div style={{ borderRadius: 18, padding: "20px", background: "#fff", border: "2px solid #fbbf24", boxShadow: "0 2px 12px rgba(251,191,36,0.1)" }}>
@@ -866,9 +913,26 @@ export default function AdminDashboardPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                 <div style={{ width: 3, height: 18, borderRadius: 99, background: "#3b82f6" }} />
                 <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>📥 รายการแจ้งปัญหา / ปัญหาการเข้าสู่ระบบ</h2>
-                <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eff6ff", color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe", marginLeft: "auto" }}>
-                  {supportRequests.length} เรื่องที่ค้างอยู่
-                </span>
+
+                {/* ✅ ปุ่มค้นหาผู้ใช้ + จำนวนเรื่อง (ครอบด้วย div เดียวกัน ดันไปขวา) */}
+                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    onClick={handleOpenUsersModal}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      padding: "6px 14px", borderRadius: 8, border: "1.5px solid #bfdbfe",
+                      background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600,
+                      cursor: "pointer", transition: "all 0.2s"
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#dbeafe"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; }}
+                  >
+                    🔍 ค้นหาผู้ใช้ในระบบ
+                  </button>
+                  <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eff6ff", color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe" }}>
+                    {supportRequests.length} เรื่องที่ค้างอยู่
+                  </span>
+                </div>
               </div>
 
               <div style={{ overflowX: "auto" }}>
@@ -894,7 +958,7 @@ export default function AdminDashboardPage() {
                           <td style={{ padding: "12px 10px", fontWeight: 600, color: "#1e293b" }}>{req.contact_info}</td>
                           <td style={{ padding: "12px 10px", color: "#475569", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{req.details}</td>
                           <td style={{ padding: "12px 10px", textAlign: "center", color: "#64748b", fontSize: 12 }}>
-                            {new Date(req.created_at).toLocaleDateString("th-TH", { 
+                            {new Date(req.created_at).toLocaleDateString("th-TH", {
                               year: "numeric",
                               month: "short",
                               day: "numeric",
@@ -907,18 +971,18 @@ export default function AdminDashboardPage() {
                               onClick={() => handleResolveRequest(req.id)}
                               disabled={resolvingRequestId === req.id}
                               style={{
-                                padding: "6px 12px", borderRadius: 8, border: "none", 
+                                padding: "6px 12px", borderRadius: 8, border: "none",
                                 background: resolvingRequestId === req.id ? "#cbd5e1" : "#3b82f6",
-                                color: "#fff", fontSize: 12, fontWeight: 600, 
-                                cursor: resolvingRequestId === req.id ? "not-allowed" : "pointer", 
+                                color: "#fff", fontSize: 12, fontWeight: 600,
+                                cursor: resolvingRequestId === req.id ? "not-allowed" : "pointer",
                                 transition: "all 0.2s"
                               }}
-                              onMouseEnter={e => { 
+                              onMouseEnter={e => {
                                 if (resolvingRequestId !== req.id) {
                                   e.currentTarget.style.background = "#2563eb";
                                 }
                               }}
-                              onMouseLeave={e => { 
+                              onMouseLeave={e => {
                                 if (resolvingRequestId !== req.id) {
                                   e.currentTarget.style.background = "#3b82f6";
                                 }
@@ -1046,6 +1110,104 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ USERS SEARCH MODAL — ค้นหาผู้ใช้ในระบบ */}
+      {showUsersModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center",
+          justifyContent: "center", zIndex: 1000, padding: 20,
+        }}
+          onClick={() => setShowUsersModal(false)}>
+          <div style={{
+            background: "#fff", borderRadius: 18, padding: 24, maxWidth: 640,
+            width: "100%", maxHeight: "80vh", display: "flex", flexDirection: "column",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          }}
+            onClick={e => e.stopPropagation()}>
+
+            {/* หัวข้อ */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+              <div style={{ width: 3, height: 18, borderRadius: 99, background: "#3b82f6" }} />
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
+                🔍 ค้นหาผู้ใช้ในระบบ
+              </h2>
+              <span style={{
+                fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eff6ff",
+                color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe", marginLeft: "auto"
+              }}>
+                {filteredUsers.length} คน
+              </span>
+            </div>
+
+            {/* ช่องค้นหา */}
+            <div style={{ position: "relative", marginBottom: 14 }}>
+              <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                autoFocus
+                placeholder="พิมพ์ชื่อ, username หรือ email เพื่อค้นหา..."
+                value={userSearch}
+                onChange={e => setUserSearch(e.target.value)}
+                style={{
+                  width: "100%", padding: "10px 14px 10px 38px", borderRadius: 10,
+                  border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: 14,
+                  color: "#1e293b", outline: "none", boxSizing: "border-box",
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.background = "#eff6ff"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#f8fafc"; }}
+              />
+            </div>
+
+            {/* ตารางผลลัพธ์ */}
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {usersLoading ? (
+                <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                  กำลังโหลดข้อมูล...
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                  <div style={{ fontSize: 32, opacity: 0.3, marginBottom: 8 }}>🔍</div>
+                  {userSearch ? "ไม่พบผู้ใช้ที่ค้นหา" : "ยังไม่มีผู้ใช้ในระบบ"}
+                </div>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "#eff6ff", borderBottom: "1.5px solid #bfdbfe", position: "sticky", top: 0 }}>
+                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#2563eb", fontWeight: 600 }}>ชื่อ-นามสกุล</th>
+                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#2563eb", fontWeight: 600 }}>Username</th>
+                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#2563eb", fontWeight: 600 }}>อีเมล</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map((u) => (
+                      <tr key={u.id} style={{ borderBottom: "1px solid #f1f5f9" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                        <td style={{ padding: "10px 12px", color: "#1e293b", fontWeight: 500 }}>{u.name}</td>
+                        <td style={{ padding: "10px 12px", color: "#475569" }}>{u.username || "—"}</td>
+                        <td style={{ padding: "10px 12px", color: "#94a3b8" }}>{u.email || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* ปุ่มปิด */}
+            <button
+              onClick={() => setShowUsersModal(false)}
+              style={{
+                marginTop: 16, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                background: "#f8fafc", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}>
+              ปิด
+            </button>
           </div>
         </div>
       )}
