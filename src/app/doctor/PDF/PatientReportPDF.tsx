@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     borderBottomStyle: 'solid',
     borderBottomWidth: 2,
-    borderBottomColor: '#16a34a', // ใช้สีเขียวให้ธีมเข้ากับหน้าเว็บของคุณ
+    borderBottomColor: '#16a34a',
     paddingBottom: 12,
     marginBottom: 20,
   },
@@ -84,9 +84,31 @@ const styles = StyleSheet.create({
     color: '#334155',
     minWidth: '45%'
   },
+  // ✅ ส่วนแสดงผล BMR, BMI, TDEE, Target Calories
+  metricsCard: {
+    backgroundColor: '#fdf2f8',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 20,
+    borderStyle: 'solid',
+    borderWidth: 1,
+    borderColor: '#fbcfe8'
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 4
+  },
+  metricItem: {
+    fontSize: 10,
+    color: '#831843',
+    fontWeight: 'bold',
+    minWidth: '45%'
+  },
   // ส่วนแสดงผลข้อมูลบันทึกปัจจุบันของแพทย์
   vitalsCard: {
-    backgroundColor: '#f0fdf4', // พื้นหลังสีเขียวอ่อน สไตล์คลินิก
+    backgroundColor: '#f0fdf4',
     borderRadius: 8, 
     padding: 14, 
     marginBottom: 20, 
@@ -120,7 +142,7 @@ const styles = StyleSheet.create({
     fontSize: 12, 
     fontWeight: 'bold', 
     color: '#1e293b', 
-    marginBottom: 8
+    marginBottom: 8 
   },
   // ตารางข้อมูลโภชนาการ
   table: { 
@@ -147,22 +169,42 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9'
   },
+  // ✅ Column sizes สำหรับตาราง nutrition
   colDate: { width: "40%", paddingLeft: 12 },
   colCal: { width: "30%", paddingRight: 16, textAlign: 'right' },
   colCarb: { width: "30%", paddingRight: 16, textAlign: 'right' },
+  
+  // ✅ Column sizes สำหรับตาราง weight history
+  colWeightDate: { width: "35%", paddingLeft: 12 },
+  colWeight: { width: "32%", paddingRight: 16, textAlign: 'right' },
+  colWeightChange: { width: "33%", paddingRight: 16, textAlign: 'right' },
+  
   cellHeader: { fontSize: 10, fontWeight: 'bold', color: '#1e293b' },
   cellData: { fontSize: 9, color: '#334155' }
 });
 
-// --- Type Definitions (ปลอดภัย ไร้ any) ---
-type DailyNutrition = { date: string; totalCal: number; totalCarb: number; };
+// --- Type Definitions ---
+type DailyNutrition = { 
+  date: string; 
+  totalCal: number; 
+  totalCarb: number; 
+};
+
+type WeightHistory = {
+  date: string;
+  weightKg: number;
+};
+
 type Patient = { 
   firstName: string; 
   lastName: string; 
   heightCm: number; 
   weightKg: number; 
-  bmi: number; 
+  targetWeightKg?: number;
+  bmi: number;
+  bmr?: number;
   dailyNutrition: DailyNutrition[];
+  weightHistory?: WeightHistory[];
   allergies?: string[];
 };
 
@@ -174,7 +216,6 @@ type DoctorProfile = {
   orgCode: string;
 };
 
-// เพิ่มโครงสร้างข้อมูลสำหรับรองรับสิ่งที่แพทย์เพิ่งกรอกในหน้าฟอร์ม
 type CurrentMedicalRecord = {
   sys: string;
   dia: string;
@@ -185,101 +226,198 @@ type CurrentMedicalRecord = {
 interface PatientReportPDFProps {
   patientData: Patient;
   doctorData: DoctorProfile | null;
-  currentRecord: CurrentMedicalRecord; // รับข้อมูลแบบ Real-time จากหน้าฟอร์ม
+  currentRecord: CurrentMedicalRecord;
+  targetCalories?: number; // ✅ เพิ่ม TDEE
+  targetCarbs?: number;
+  targetProtein?: number;
+  targetFat?: number;
 }
 
+// ✅ ฟังก์ชันคำนวณ TDEE (ถ้าไม่มีใน database)
+const calculateTDEE = (bmr: number, activityLevel: string = "moderate"): number => {
+  const factors: { [key: string]: number } = {
+    sedentary: 1.2,
+    light: 1.375,
+    moderate: 1.55,
+    active: 1.725,
+    veryActive: 1.9
+  };
+  return Math.round(bmr * (factors[activityLevel] || 1.55));
+};
+
 // คอมโพเนนต์วาดโครงสร้างหน้ากระดาษเอกสาร PDF
-const ReportDocument = ({ patientData, doctorData, currentRecord }: PatientReportPDFProps) => (
-  <PdfDocument>
-    <PdfPage size="A4" style={styles.page}>
-      
-      {/* 1. ส่วนหัวของรายงาน */}
-      <PdfView style={styles.headerContainer}>
-        <PdfText style={styles.hospitalTitle}>{doctorData?.hospitalName || "โรงพยาบาลส่งเสริมสุขภาพตำบล"}</PdfText>
-        <PdfText style={styles.reportSubtitle}>รายงานสรุปผลการตรวจรักษาและประวัติบันทึกโภชนาการผู้ป่วย</PdfText>
-      </PdfView>
-
-      {/* 2. ข้อมูลกำกับเอกสาร */}
-      <PdfView style={styles.metaInfoBox}>
-        <PdfView>
-          <PdfText>แพทย์ผู้ตรวจ: {doctorData ? `${doctorData.firstName} ${doctorData.lastName}` : "—"}</PdfText>
+const ReportDocument = ({ 
+  patientData, 
+  doctorData, 
+  currentRecord,
+  targetCalories,
+  targetCarbs,
+  targetProtein,
+  targetFat
+}: PatientReportPDFProps) => {
+  const tdee = targetCalories || (patientData.bmr ? calculateTDEE(patientData.bmr) : 0);
+  
+  return (
+    <PdfDocument>
+      <PdfPage size="A4" style={styles.page}>
+        
+        {/* 1. ส่วนหัวของรายงาน */}
+        <PdfView style={styles.headerContainer}>
+          <PdfText style={styles.hospitalTitle}>{doctorData?.hospitalName || "โรงพยาบาลส่งเสริมสุขภาพตำบล"}</PdfText>
+          <PdfText style={styles.reportSubtitle}>รายงานสรุปผลการตรวจรักษาและประวัติบันทึกโภชนาการผู้ป่วย</PdfText>
         </PdfView>
-        <PdfView style={{ textAlign: 'right' }}>
-          <PdfText>วันที่พิมพ์เอกสาร: {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</PdfText>
-        </PdfView>
-      </PdfView>
 
-      {/* 3. ข้อมูลทั่วไปของผู้ป่วย */}
-      <PdfView style={styles.patientCard}>
-        <PdfText style={styles.patientTitle}>ข้อมูลทั่วไปของผู้ป่วย</PdfText>
-        <PdfView style={styles.patientGrid}>
-          <PdfText style={styles.patientInfoText}>ชื่อ-นามสกุล: {patientData.firstName} {patientData.lastName}</PdfText>
-          <PdfText style={styles.patientInfoText}>ดัชนีมวลกาย (BMI): {patientData.bmi || "—"}</PdfText>
-          <PdfText style={styles.patientInfoText}>ส่วนสูง: {patientData.heightCm || "—"} ซม.</PdfText>
-          <PdfText style={styles.patientInfoText}>น้ำหนัก: {patientData.weightKg || "—"} กก.</PdfText>
-          <PdfText style={[styles.patientInfoText, { minWidth: '100%', marginTop: 4, color: '#dc2626' }]}>
-            ประวัติการแพ้อาหาร: {patientData.allergies && patientData.allergies.length > 0 ? patientData.allergies.join(', ') : "ไม่มีประวัติการแพ้อาหาร"}
+        {/* 2. ข้อมูลกำกับเอกสาร */}
+        <PdfView style={styles.metaInfoBox}>
+          <PdfView>
+            <PdfText>แพทย์ผู้ตรวจ: {doctorData ? `${doctorData.firstName} ${doctorData.lastName}` : "—"}</PdfText>
+          </PdfView>
+          <PdfView style={{ textAlign: 'right' }}>
+            <PdfText>วันที่พิมพ์เอกสาร: {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</PdfText>
+          </PdfView>
+        </PdfView>
+
+        {/* 3. ข้อมูลทั่วไปของผู้ป่วย */}
+        <PdfView style={styles.patientCard}>
+          <PdfText style={styles.patientTitle}>ข้อมูลทั่วไปของผู้ป่วย</PdfText>
+          <PdfView style={styles.patientGrid}>
+            <PdfText style={styles.patientInfoText}>ชื่อ-นามสกุล: {patientData.firstName} {patientData.lastName}</PdfText>
+            <PdfText style={styles.patientInfoText}>ส่วนสูง: {patientData.heightCm || "—"} ซม.</PdfText>
+            <PdfText style={styles.patientInfoText}>น้ำหนัก: {patientData.weightKg || "—"} กก.</PdfText>
+            <PdfText style={styles.patientInfoText}>เป้าหมายน้ำหนัก: {patientData.targetWeightKg || "—"} กก.</PdfText>
+            <PdfText style={[styles.patientInfoText, { minWidth: '100%', marginTop: 4, color: '#dc2626' }]}>
+              ประวัติการแพ้อาหาร: {patientData.allergies && patientData.allergies.length > 0 ? patientData.allergies.join(', ') : "ไม่มีประวัติการแพ้อาหาร"}
+            </PdfText>
+          </PdfView>
+        </PdfView>
+
+        {/* ✅ 4. ข้อมูลดัชนีและเป้าหมายโภชนาการ */}
+        <PdfView style={styles.metricsCard}>
+          <PdfText style={[styles.patientTitle, { color: '#831843', borderBottomColor: '#fbcfe8' }]}>ดัชนีสุขภาพและเป้าหมายโภชนาการ</PdfText>
+          <PdfView style={styles.metricsGrid}>
+            <PdfText style={styles.metricItem}>BMI (ดัชนีมวลกาย): {patientData.bmi?.toFixed(1) || "—"}</PdfText>
+            <PdfText style={styles.metricItem}>BMR (ปริมาณแคลอรี่พื้นฐาน): {patientData.bmr?.toFixed(0) || "—"} kcal/วัน</PdfText>
+            <PdfText style={styles.metricItem}>TDEE (พลังงานทั้งหมด): {tdee || "—"} kcal/วัน</PdfText>
+            <PdfText style={styles.metricItem}>เป้าหมายแคลอรี่: {targetCalories || "—"} kcal/วัน</PdfText>
+            <PdfText style={styles.metricItem}>เป้าหมายคาร์โบไฮเดรต: {targetCarbs || "—"} g/วัน</PdfText>
+            <PdfText style={styles.metricItem}>เป้าหมายโปรตีน: {targetProtein || "—"} g/วัน</PdfText>
+            <PdfText style={styles.metricItem}>เป้าหมายไขมัน: {targetFat || "—"} g/วัน</PdfText>
+          </PdfView>
+        </PdfView>
+
+        {/* 5. ผลบันทึกการตรวจและคำแนะนำล่าสุด */}
+        <PdfView style={styles.vitalsCard}>
+          <PdfText style={[styles.patientTitle, { color: '#166534', borderBottomColor: '#bbf7d0' }]}>ผลการตรวจร่างกายและคำแนะนำล่าสุด (วันที่ {new Date().toLocaleDateString('th-TH')})</PdfText>
+          <PdfView style={styles.vitalsGrid}>
+            <PdfText style={styles.vitalsItem}>ความดันโลหิต: {currentRecord.sys || "—"} / {currentRecord.dia || "—"} mmHg</PdfText>
+            <PdfText style={styles.vitalsItem}>ชีพจร: {currentRecord.pulse || "—"} BPM</PdfText>
+          </PdfView>
+          <PdfText style={{ fontSize: 10, fontWeight: 'bold', color: '#14532d', marginTop: 4 }}>คำแนะนำการดูแลสุขภาพโดยแพทย์:</PdfText>
+          <PdfText style={styles.recommendationText}>
+            {currentRecord.recommendation.trim() || "ไม่มีบันทึกคำแนะนำเพิ่มเติมในครั้งนี้"}
           </PdfText>
         </PdfView>
-      </PdfView>
 
-      {/* 4. ผลบันทึกการตรวจและคำแนะนำล่าสุด (ข้อมูลจากหน้าฟอร์มที่เพิ่งกรอก) */}
-      <PdfView style={styles.vitalsCard}>
-        <PdfText style={[styles.patientTitle, { color: '#166534', borderBottomColor: '#bbf7d0' }]}>ผลการตรวจร่างกายและคำแนะนำล่าสุด (วันที่ {new Date().toLocaleDateString('th-TH')})</PdfText>
-        <PdfView style={styles.vitalsGrid}>
-          <PdfText style={styles.vitalsItem}>ความดันโลหิต (Blood Pressure): {currentRecord.sys || "—"} / {currentRecord.dia || "—"} mmHg</PdfText>
-          <PdfText style={styles.vitalsItem}>ชีพจร (Pulse Rate): {currentRecord.pulse || "—"} BPM</PdfText>
-        </PdfView>
-        <PdfText style={{ fontSize: 10, fontWeight: 'bold', color: '#14532d', marginTop: 4 }}>คำแนะนำการดูแลสุขภาพโดยแพทย์:</PdfText>
-        <PdfText style={styles.recommendationText}>
-          {currentRecord.recommendation.trim() || "ไม่มีบันทึกคำแนะนำเพิ่มเติมในครั้งนี้"}
-        </PdfText>
-      </PdfView>
-
-      {/* 5. ตารางบันทึกโภชนาการรายวัน */}
-      <PdfText style={styles.sectionTitle}>ประวัติการบันทึกโภชนาการรายวันย้อนหลัง</PdfText>
-      <PdfView style={styles.table}>
-        <PdfView style={[styles.tableRow, styles.tableHeaderRow]}>
-           <PdfView style={styles.colDate}><PdfText style={styles.cellHeader}>วันที่ตรวจบันทึก</PdfText></PdfView>
-           <PdfView style={styles.colCal}><PdfText style={[styles.cellHeader, { textAlign: 'right' }]}>พลังงาน (kcal)</PdfText></PdfView>
-           <PdfView style={styles.colCarb}><PdfText style={[styles.cellHeader, { textAlign: 'right' }]}>คาร์โบไฮเดรต (g)</PdfText></PdfView>
-        </PdfView>
-        
-        {!patientData.dailyNutrition || patientData.dailyNutrition.length === 0 ? (
-          <PdfView style={styles.tableRow}>
-            <PdfView style={{ width: "100%", padding: 12 }}>
-              <PdfText style={{ fontSize: 9, textAlign: 'center', color: '#94a3b8' }}>ไม่พบข้อมูลการบันทึกโภชนาการ</PdfText>
-            </PdfView>
-          </PdfView>
-        ) : (
-          patientData.dailyNutrition.map((d, i) => {
-            const dateObj = new Date(d.date);
-            const formattedDate = isNaN(dateObj.getTime())
-              ? d.date
-              : dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
-
-            return (
-              <PdfView key={i} style={[styles.tableRow, styles.tableDataRow]}>
-                <PdfView style={styles.colDate}><PdfText style={styles.cellData}>{formattedDate}</PdfText></PdfView>
-                <PdfView style={styles.colCal}><PdfText style={styles.cellData}>{d.totalCal.toLocaleString()}</PdfText></PdfView>
-                <PdfView style={styles.colCarb}><PdfText style={styles.cellData}>{d.totalCarb.toLocaleString()}</PdfText></PdfView>
+        {/* ✅ 6. ตารางประวัติการเปลี่ยนแปลงน้ำหนัก */}
+        {patientData.weightHistory && patientData.weightHistory.length > 0 && (
+          <>
+            <PdfText style={styles.sectionTitle}>ประวัติการเปลี่ยนแปลงน้ำหนัก</PdfText>
+            <PdfView style={styles.table}>
+              <PdfView style={[styles.tableRow, styles.tableHeaderRow]}>
+                <PdfView style={styles.colWeightDate}><PdfText style={styles.cellHeader}>วันที่บันทึก</PdfText></PdfView>
+                <PdfView style={styles.colWeight}><PdfText style={[styles.cellHeader, { textAlign: 'right' }]}>น้ำหนัก (กก.)</PdfText></PdfView>
+                <PdfView style={styles.colWeightChange}><PdfText style={[styles.cellHeader, { textAlign: 'right' }]}>การเปลี่ยนแปลง</PdfText></PdfView>
               </PdfView>
-            );
-          })
-        )}
-      </PdfView>
+              
+              {patientData.weightHistory.map((w, i) => {
+                const dateObj = new Date(w.date);
+                const formattedDate = isNaN(dateObj.getTime())
+                  ? w.date
+                  : dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
 
-    </PdfPage>
-  </PdfDocument>
-);
+                const prevWeight = i > 0 ? patientData.weightHistory![i - 1].weightKg : null;
+                const change = prevWeight ? (w.weightKg - prevWeight).toFixed(1) : "—";
+                const changeSign = prevWeight ? (parseFloat(change as string) >= 0 ? '+' : '') : '';
+
+                return (
+                  <PdfView key={i} style={[styles.tableRow, styles.tableDataRow]}>
+                    <PdfView style={styles.colWeightDate}><PdfText style={styles.cellData}>{formattedDate}</PdfText></PdfView>
+                    <PdfView style={styles.colWeight}><PdfText style={styles.cellData}>{w.weightKg.toFixed(1)}</PdfText></PdfView>
+                    <PdfView style={styles.colWeightChange}>
+                      <PdfText style={[styles.cellData, { color: change === "—" ? '#94a3b8' : (parseFloat(change as string) < 0 ? '#16a34a' : '#dc2626') }]}>
+                        {change === "—" ? "—" : `${changeSign}${change} กก.`}
+                      </PdfText>
+                    </PdfView>
+                  </PdfView>
+                );
+              })}
+            </PdfView>
+          </>
+        )}
+
+        {/* 7. ตารางบันทึกโภชนาการรายวัน */}
+        <PdfText style={[styles.sectionTitle, { marginTop: 20 }]}>ประวัติการบันทึกโภชนาการรายวันย้อนหลัง</PdfText>
+        <PdfView style={styles.table}>
+          <PdfView style={[styles.tableRow, styles.tableHeaderRow]}>
+             <PdfView style={styles.colDate}><PdfText style={styles.cellHeader}>วันที่ตรวจบันทึก</PdfText></PdfView>
+             <PdfView style={styles.colCal}><PdfText style={[styles.cellHeader, { textAlign: 'right' }]}>พลังงาน (kcal)</PdfText></PdfView>
+             <PdfView style={styles.colCarb}><PdfText style={[styles.cellHeader, { textAlign: 'right' }]}>คาร์โบไฮเดรต (g)</PdfText></PdfView>
+          </PdfView>
+          
+          {!patientData.dailyNutrition || patientData.dailyNutrition.length === 0 ? (
+            <PdfView style={styles.tableRow}>
+              <PdfView style={{ width: "100%", padding: 12 }}>
+                <PdfText style={{ fontSize: 9, textAlign: 'center', color: '#94a3b8' }}>ไม่พบข้อมูลการบันทึกโภชนาการ</PdfText>
+              </PdfView>
+            </PdfView>
+          ) : (
+            patientData.dailyNutrition.map((d, i) => {
+              const dateObj = new Date(d.date);
+              const formattedDate = isNaN(dateObj.getTime())
+                ? d.date
+                : dateObj.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
+
+              return (
+                <PdfView key={i} style={[styles.tableRow, styles.tableDataRow]}>
+                  <PdfView style={styles.colDate}><PdfText style={styles.cellData}>{formattedDate}</PdfText></PdfView>
+                  <PdfView style={styles.colCal}><PdfText style={styles.cellData}>{d.totalCal.toLocaleString()}</PdfText></PdfView>
+                  <PdfView style={styles.colCarb}><PdfText style={styles.cellData}>{d.totalCarb.toLocaleString()}</PdfText></PdfView>
+                </PdfView>
+              );
+            })
+          )}
+        </PdfView>
+
+      </PdfPage>
+    </PdfDocument>
+  );
+};
 
 // ปุ่มหลักสำหรับดึงข้อมูลและดาวน์โหลด PDF
-export default function PatientReportPDF({ patientData, doctorData, currentRecord }: PatientReportPDFProps) {
+export default function PatientReportPDF({ 
+  patientData, 
+  doctorData, 
+  currentRecord,
+  targetCalories,
+  targetCarbs,
+  targetProtein,
+  targetFat
+}: PatientReportPDFProps) {
   const fileName = `รายงานการตรวจ_${patientData.firstName}_${new Date().toISOString().slice(0,10)}.pdf`;
 
   return (
     <PDFDownloadLink
-      document={<ReportDocument patientData={patientData} doctorData={doctorData} currentRecord={currentRecord} />}
+      document={
+        <ReportDocument 
+          patientData={patientData} 
+          doctorData={doctorData} 
+          currentRecord={currentRecord}
+          targetCalories={targetCalories}
+          targetCarbs={targetCarbs}
+          targetProtein={targetProtein}
+          targetFat={targetFat}
+        />
+      }
       fileName={fileName}
       style={{
         inlineSize: "max-content",
