@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     color: '#334155',
     minWidth: '45%'
   },
-  // ✅ ส่วนแสดงผล BMR, BMI, TDEE, Target Calories
+  // ส่วนแสดงผล BMR, BMI, TDEE
   metricsCard: {
     backgroundColor: '#fdf2f8',
     borderRadius: 8,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     color: '#1e293b', 
     marginBottom: 8 
   },
-  // ตารางข้อมูลโภชนาการ
+  // ตารางข้อมูล
   table: { 
     width: "100%", 
     borderStyle: "solid", 
@@ -169,12 +169,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9'
   },
-  // ✅ Column sizes สำหรับตาราง nutrition
+  // Column sizes สำหรับตาราง nutrition
   colDate: { width: "40%", paddingLeft: 12 },
   colCal: { width: "30%", paddingRight: 16, textAlign: 'right' },
   colCarb: { width: "30%", paddingRight: 16, textAlign: 'right' },
   
-  // ✅ Column sizes สำหรับตาราง weight history
+  // Column sizes สำหรับตาราง weight history
   colWeightDate: { width: "35%", paddingLeft: 12 },
   colWeight: { width: "32%", paddingRight: 16, textAlign: 'right' },
   colWeightChange: { width: "33%", paddingRight: 16, textAlign: 'right' },
@@ -227,13 +227,10 @@ interface PatientReportPDFProps {
   patientData: Patient;
   doctorData: DoctorProfile | null;
   currentRecord: CurrentMedicalRecord;
-  targetCalories?: number; // ✅ เพิ่ม TDEE
-  targetCarbs?: number;
-  targetProtein?: number;
-  targetFat?: number;
+  targetCalories?: number; 
 }
 
-// ✅ ฟังก์ชันคำนวณ TDEE (ถ้าไม่มีใน database)
+// ฟังก์ชันคำนวณ TDEE
 const calculateTDEE = (bmr: number, activityLevel: string = "moderate"): number => {
   const factors: { [key: string]: number } = {
     sedentary: 1.2,
@@ -250,11 +247,8 @@ const ReportDocument = ({
   patientData, 
   doctorData, 
   currentRecord,
-  targetCalories,
-  targetCarbs,
-  targetProtein,
-  targetFat
-}: PatientReportPDFProps) => {
+  targetCalories
+}: Omit<PatientReportPDFProps, 'targetCarbs' | 'targetProtein' | 'targetFat'>) => {
   const tdee = targetCalories || (patientData.bmr ? calculateTDEE(patientData.bmr) : 0);
   
   return (
@@ -291,17 +285,13 @@ const ReportDocument = ({
           </PdfView>
         </PdfView>
 
-        {/* ✅ 4. ข้อมูลดัชนีและเป้าหมายโภชนาการ */}
+        {/* 4. ข้อมูลดัชนีสุขภาพ */}
         <PdfView style={styles.metricsCard}>
-          <PdfText style={[styles.patientTitle, { color: '#831843', borderBottomColor: '#fbcfe8' }]}>ดัชนีสุขภาพและเป้าหมายโภชนาการ</PdfText>
+          <PdfText style={[styles.patientTitle, { color: '#831843', borderBottomColor: '#fbcfe8' }]}>ดัชนีสุขภาพ</PdfText>
           <PdfView style={styles.metricsGrid}>
             <PdfText style={styles.metricItem}>BMI (ดัชนีมวลกาย): {patientData.bmi?.toFixed(1) || "—"}</PdfText>
             <PdfText style={styles.metricItem}>BMR (ปริมาณแคลอรี่พื้นฐาน): {patientData.bmr?.toFixed(0) || "—"} kcal/วัน</PdfText>
             <PdfText style={styles.metricItem}>TDEE (พลังงานทั้งหมด): {tdee || "—"} kcal/วัน</PdfText>
-            <PdfText style={styles.metricItem}>เป้าหมายแคลอรี่: {targetCalories || "—"} kcal/วัน</PdfText>
-            <PdfText style={styles.metricItem}>เป้าหมายคาร์โบไฮเดรต: {targetCarbs || "—"} g/วัน</PdfText>
-            <PdfText style={styles.metricItem}>เป้าหมายโปรตีน: {targetProtein || "—"} g/วัน</PdfText>
-            <PdfText style={styles.metricItem}>เป้าหมายไขมัน: {targetFat || "—"} g/วัน</PdfText>
           </PdfView>
         </PdfView>
 
@@ -318,7 +308,7 @@ const ReportDocument = ({
           </PdfText>
         </PdfView>
 
-        {/* ✅ 6. ตารางประวัติการเปลี่ยนแปลงน้ำหนัก */}
+        {/* 6. ตารางประวัติการเปลี่ยนแปลงน้ำหนัก */}
         {patientData.weightHistory && patientData.weightHistory.length > 0 && (
           <>
             <PdfText style={styles.sectionTitle}>ประวัติการเปลี่ยนแปลงน้ำหนัก</PdfText>
@@ -398,10 +388,7 @@ export default function PatientReportPDF({
   patientData, 
   doctorData, 
   currentRecord,
-  targetCalories,
-  targetCarbs,
-  targetProtein,
-  targetFat
+  targetCalories
 }: PatientReportPDFProps) {
   const fileName = `รายงานการตรวจ_${patientData.firstName}_${new Date().toISOString().slice(0,10)}.pdf`;
 
@@ -413,9 +400,6 @@ export default function PatientReportPDF({
           doctorData={doctorData} 
           currentRecord={currentRecord}
           targetCalories={targetCalories}
-          targetCarbs={targetCarbs}
-          targetProtein={targetProtein}
-          targetFat={targetFat}
         />
       }
       fileName={fileName}
