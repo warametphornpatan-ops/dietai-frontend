@@ -157,7 +157,7 @@ export default function DoctorDashboard() {
     if (!kw.trim()) { setPatients([]); return; }
     try {
       const param = isDigitOnly(kw) ? `citizenId=${encodeURIComponent(kw)}` : `name=${encodeURIComponent(kw)}`;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/doctors/patients?${param}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/doctors/patients?${param}`);
       const data = await res.json();
       if (Array.isArray(data)) {
         setPatients(data);
@@ -202,7 +202,7 @@ export default function DoctorDashboard() {
     setIsHistoryModalOpen(true);
     setIsLoadingHistory(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/doctors/patients/${patientId}/profile-history`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/doctors/patients/${patientId}/profile-history`);
       if (res.ok) {
         const data = await res.json();
         setProfileHistoryData(data);
