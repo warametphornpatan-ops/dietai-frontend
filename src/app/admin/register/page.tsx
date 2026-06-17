@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import bcryptjs from "bcryptjs";
 import { saveDoctorApplication, checkUsernameAvailabilityInApplications } from "@/lib/supabase-applications-helpers";
 import { validateThaiID } from "@/lib/validateThaiID";
 import { supabase } from "@/lib/supabase";
@@ -182,6 +183,9 @@ export default function AdminRegisterPage() {
 
     setLoading(true);
     try {
+      // ✅ Hash password ก่อนส่ง
+      const hashedPassword = await bcryptjs.hash(form.password, 10);
+
       // ✅ บันทึกลง doctor_applications
       const result = await saveDoctorApplication({
         org_code: form.org_code.trim(),
@@ -190,7 +194,7 @@ export default function AdminRegisterPage() {
         last_name: form.last_name.trim(),
         email: form.email.trim(),
         username: form.username.trim(),
-        password_hash: form.password,
+        password_hash: hashedPassword,  // ✅ Hashed password
         position: form.position.trim(),
       });
 
@@ -565,7 +569,7 @@ export default function AdminRegisterPage() {
             </p>
 
             <p style={{ fontSize: 13, color: "#6b9e84", margin: "0 0 16px", lineHeight: 1.5 }}>
-              แอดมินจะตรวจสอบข้อมูลของคุณ  เมื่อได้รับการอนุมัติแล้ว จะสามารถเข้าใช้งานได้
+              แอดมินจะตรวจสอบข้อมูลของคุณ เมื่อได้รับการอนุมัติแล้ว จะสามารถเข้าใช้งานได้
             </p>
 
             <button
