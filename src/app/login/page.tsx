@@ -575,10 +575,19 @@ export default function LoginPage() {
 
       {/* Support Modal */}
       {showSupportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
+        <div
+          className="fixed inset-0 flex items-center justify-center p-4 z-50"
+          style={{
+            background: "rgba(13, 79, 46, 0.35)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+          }}
+          onClick={() => setShowSupportModal(false)}
+        >
           <div
             className="w-full max-w-md bg-white p-6 rounded-3xl border shadow-2xl"
             style={{ borderColor: "rgba(22,163,97,0.15)" }}
+            onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold mb-1" style={{ color: COLOR.dark }}>
               📧 แจ้งปัญหาการเข้าสู่ระบบ
