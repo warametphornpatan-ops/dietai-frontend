@@ -3,23 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
-import { validateThaiID } from "@/lib/validateThaiID";  // ✅ เพิ่ม
+import { saveDoctorApplication, verifyEmailOtp, checkUsernameAvailabilityInApplications } from "@/lib/supabase-applications-helpers";
+import { validateThaiID } from "@/lib/validateThaiID";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 type AdminRegisterForm = {
   org_code: string; citizen_id: string; first_name: string; last_name: string;
   email: string; position: string; username: string; password: string; confirm_password: string;
-};
-
-type DoctorRegisterPayload = {
-  org_code: string; citizen_id: string; first_name: string; last_name: string;
-  email: string; username: string; password: string;
-  position: string; role: "doctor";
 };
 
 type FastApiValidationErrorItem = { loc: Array<string | number>; msg: string; type: string };
@@ -28,6 +19,7 @@ type FastApiErrorResponse = { detail: string | FastApiValidationErrorItem[] };
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
 }
+
 function isFastApiErrorResponse(v: unknown): v is FastApiErrorResponse {
   if (!isObject(v) || !("detail" in v)) return false;
   const d = v.detail;
@@ -35,12 +27,14 @@ function isFastApiErrorResponse(v: unknown): v is FastApiErrorResponse {
   if (Array.isArray(d)) return d.every(i => isObject(i) && Array.isArray(i.loc) && typeof i.msg === "string");
   return false;
 }
+
 function extractErrorMessage(body: unknown): string {
   if (!isFastApiErrorResponse(body)) return "ลงทะเบียนไม่สำเร็จ";
   const { detail } = body;
   if (typeof detail === "string") return detail;
   return detail[0]?.msg ?? "ลงทะเบียนไม่สำเร็จ";
 }
+
 async function safeParseJson(res: Response): Promise<unknown> {
   const ct = res.headers.get("content-type") ?? "";
   if (!ct.includes("application/json")) return null;
@@ -100,9 +94,13 @@ export default function AdminRegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof AdminRegisterForm, string>>>({});
 
+  // ✅ OTP Modal (ยืนยัน email)
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otp, setOtp] = useState("");
   const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  // ✅ Success Modal (หลังจาก OTP สำเร็จ)
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const set = (key: keyof AdminRegisterForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm(p => ({ ...p, [key]: e.target.value }));
@@ -135,22 +133,15 @@ export default function AdminRegisterPage() {
     setUsernameStatus("idle");
     setUsernameMessage("");
     try {
-      const res = await fetch(`${API_URL}/admins/doctors/check-username?username=${encodeURIComponent(user)}`);
-      const data = await safeParseJson(res);
-
-      if (res.status === 404) {
-        setUsernameStatus("error");
-        setUsernameMessage("ชื่อผู้ใช้นี้มีในระบบแล้ว");
-      } else if (res.ok && isObject(data) && data.is_available === true) {
+      // ✅ ใช้ Supabase helper
+      const result = await checkUsernameAvailabilityInApplications(user);
+      
+      if (result.success && result.available) {
         setUsernameStatus("success");
         setUsernameMessage("สามารถใช้ชื่อผู้ใช้นี้ได้");
       } else {
         setUsernameStatus("error");
-        setUsernameMessage(
-          isObject(data) && typeof data.detail === "string"
-            ? data.detail
-            : "ชื่อผู้ใช้นี้มีในระบบแล้ว"
-        );
+        setUsernameMessage("ชื่อผู้ใช้นี้มีในระบบแล้ว");
       }
     } catch {
       setUsernameStatus("error");
@@ -169,7 +160,7 @@ export default function AdminRegisterPage() {
     
     const digits = form.citizen_id.replace(/\D/g, "");
     
-    // ✅ เพิ่ม: ตรวจสอบเลขบัตรประชาชน
+    // ✅ ตรวจสอบเลขบัตรประชาชน
     if (digits.length !== 13) {
       errs.citizen_id = "ต้องเป็นตัวเลข 13 หลัก";
     } else {
@@ -192,56 +183,73 @@ export default function AdminRegisterPage() {
 
     setLoading(true);
     try {
-      const payload: DoctorRegisterPayload = {
-        org_code: form.org_code.trim(), citizen_id: digits,
-        first_name: form.first_name.trim(), last_name: form.last_name.trim(),
-        email: form.email.trim(), username: form.username.trim(),
-        password: form.password,
-        position: form.position.trim(),
-        role: "doctor",
-      };
-
-      const res = await fetch(`${API_URL}/admins/doctors`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-      });
-      const body = await safeParseJson(res);
-      if (!res.ok) { alert(extractErrorMessage(body)); return; }
-
-      const { error: otpError } = await supabase.auth.signInWithOtp({
+      // ✅ บันทึกลง doctor_applications (ยังไม่ใช่ doctors table)
+      const result = await saveDoctorApplication({
+        org_code: form.org_code.trim(),
+        citizen_id: digits,
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
         email: form.email.trim(),
-        options: {
-          shouldCreateUser: true,
-        },
+        username: form.username.trim(),
+        password_hash: form.password, // ⚠️ TODO: Hash password ก่อนส่ง
+        position: form.position.trim(),
       });
 
-      if (otpError) {
-        alert("ลงทะเบียนสำเร็จ แต่ส่ง OTP ไม่ได้: " + otpError.message);
+      if (!result.success) {
+        alert(result.error || "ลงทะเบียนไม่สำเร็จ");
         return;
       }
 
-      setShowOtpModal(true);
+      // ✅ ส่ง OTP ไปยัง email
+      try {
+        const otpRes = await fetch(`${API_URL}/auth/send-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.email.trim() }),
+        });
 
-    } catch { alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
-    finally { setLoading(false); }
+        if (!otpRes.ok) {
+          alert("ลงทะเบียนสำเร็จ แต่ส่ง OTP ไม่ได้");
+          setShowSuccessModal(true);
+          return;
+        }
+
+        // ✅ แสดง OTP Modal เพื่อยืนยัน email
+        setShowOtpModal(true);
+      } catch {
+        alert("ลงทะเบียนสำเร็จ แต่เกิดข้อผิดพลาดในการส่ง OTP");
+        setShowSuccessModal(true);
+      }
+
+    } catch (error) {
+      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+    } finally {
+      setLoading(false);
+    }
   }
 
+  // ✅ Handler สำหรับปิด Success Modal
+  function handleCloseSuccessModal() {
+    setShowSuccessModal(false);
+    router.push("/login");
+  }
+
+  // ✅ Handler สำหรับ OTP Verification
   async function handleVerifyOtp() {
     if (otp.length !== 6) return;
     setVerifyingOtp(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: form.email.trim(),
-        token: otp,
-        type: "email",
-      });
+      // ✅ ใช้ Supabase helper เพื่อ verify OTP + update email_verified
+      const result = await verifyEmailOtp(form.email.trim(), otp);
 
-      if (error) {
+      if (!result.success) {
         alert("รหัส OTP ไม่ถูกต้องหรือหมดอายุ กรุณาลองใหม่");
         return;
       }
 
-      alert("ลงทะเบียนและยืนยันอีเมลสำเร็จ!");
-      router.push("/login");
+      // ✅ OTP ถูกต้อง - ปิด OTP Modal และแสดง Success Modal
+      setShowOtpModal(false);
+      setShowSuccessModal(true);
     } catch {
       alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     } finally {
@@ -482,7 +490,7 @@ export default function AdminRegisterPage() {
         </p>
       </div>
 
-      {/* OTP Modal */}
+      {/* ✅ OTP Modal (ยืนยัน email) */}
       {showOtpModal && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center",
@@ -523,6 +531,44 @@ export default function AdminRegisterPage() {
               }}
             >
               {verifyingOtp ? "กำลังตรวจสอบ..." : "ยืนยันรหัส OTP"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Success Modal (หลังจาก OTP สำเร็จ) */}
+      {showSuccessModal && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", padding: 16
+        }}>
+          <div style={{
+            background: "#fff", width: "100%", maxWidth: 360, borderRadius: 20, padding: 24,
+            boxShadow: "0 20px 40px rgba(0,0,0,0.1)", textAlign: "center"
+          }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(22,163,96,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a360" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            </div>
+            <h3 style={{ margin: "0 0 8px", fontSize: 18, color: "#0d4f2e", fontWeight: 700 }}>ลงทะเบียนสำเร็จ!</h3>
+            <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6b9e84", lineHeight: 1.6 }}>
+              ข้อมูลของคุณได้รับการลงทะเบียน<br />
+              <strong style={{ color: "#0d6e43" }}>รอการอนุมัติจากแอดมิน</strong>
+            </p>
+
+            <p style={{ fontSize: 13, color: "#6b9e84", margin: "0 0 16px", lineHeight: 1.5 }}>
+              แอดมินจะตรวจสอบข้อมูลของคุณ คุณจะได้รับการแจ้งทางอีเมล เมื่อได้รับการอนุมัติแล้ว
+            </p>
+
+            <button
+              type="button"
+              onClick={handleCloseSuccessModal}
+              style={{
+                width: "100%", padding: 14, borderRadius: 12, border: "none", fontSize: 15, fontWeight: 700, color: "#fff",
+                background: "#16a360",
+                cursor: "pointer", transition: "0.2s"
+              }}
+            >
+              กลับไปหน้าเข้าสู่ระบบ
             </button>
           </div>
         </div>
