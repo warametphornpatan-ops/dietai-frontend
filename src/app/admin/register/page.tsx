@@ -247,17 +247,13 @@ export default function AdminRegisterPage() {
       }
 
       // ✅ OTP ถูกต้อง - Update email_verified ใน doctor_applications
-      const { data: session } = await supabase.auth.getSession();
-      if (session?.user?.id) {
-        // ✅ Update Supabase: doctor_applications.email_verified = true
-        const { error: updateError } = await supabase
-          .from("doctor_applications")
-          .update({ email_verified: true })
-          .eq("email", form.email.trim());
+      const { error: updateError } = await supabase
+        .from("doctor_applications")
+        .update({ email_verified: true })
+        .eq("email", form.email.trim());
 
-        if (updateError) {
-          console.error("Error updating email_verified:", updateError);
-        }
+      if (updateError) {
+        console.error("Error updating email_verified:", updateError);
       }
 
       // ✅ ปิด OTP Modal และแสดง Success Modal
