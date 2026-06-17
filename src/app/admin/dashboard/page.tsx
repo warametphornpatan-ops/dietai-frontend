@@ -111,8 +111,8 @@ function SI(props: React.InputHTMLAttributes<HTMLInputElement>) {
       {...props} 
       style={{ ...inputBase, ...props.style }}
       onFocus={e => { 
-        e.currentTarget.style.borderColor = "#6b9e84"; 
-        e.currentTarget.style.background = "#f0f7f4"; 
+        e.currentTarget.style.borderColor = "#3b82f6"; 
+        e.currentTarget.style.background = "#eff6ff"; 
         props.onFocus?.(e); 
       }}
       onBlur={e => { 
@@ -567,7 +567,7 @@ export default function AdminDashboardPage() {
     s.last_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const avatarColors = ["#6b9e84", "#3b82f6", "#6366f1", "#8b5cf6", "#0ea5e9"];
+  const avatarColors = ["#3b82f6", "#6366f1", "#0ea5e9", "#8b5cf6", "#2563eb"];
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "24px 20px 48px" }}>
@@ -578,16 +578,16 @@ export default function AdminDashboardPage() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ 
               width: 44, height: 44, borderRadius: 14, 
-              background: "linear-gradient(135deg,#6b9e84,#4d7760)", 
+              background: "linear-gradient(135deg,#3b82f6,#2563eb)", 
               display: "flex", alignItems: "center", justifyContent: "center", 
-              fontSize: 20, boxShadow: "0 4px 14px rgba(107,158,132,0.35)" 
+              fontSize: 20, boxShadow: "0 4px 14px rgba(59,130,246,0.35)" 
             }}>🏥</div>
             <div>
               <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#0f172a" }}>
                 {adminOrgName || "กำลังโหลดข้อมูลหน่วยงาน..."}
               </h1>
               <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontWeight: 500 }}>
-                ผู้ดูแลระบบ: <span style={{ color: "#6b9e84" }}>{adminName || "Admin"}</span> (รหัสหน่วยงาน: {adminOrgCode || "—"})
+                ผู้ดูแลระบบ: <span style={{ color: "#3b82f6" }}>{adminName || "Admin"}</span> (รหัสหน่วยงาน: {adminOrgCode || "—"})
               </p>
             </div>
           </div>
@@ -602,9 +602,9 @@ export default function AdminDashboardPage() {
                 boxShadow: "0 1px 4px rgba(0,0,0,0.06)" 
               }}
               onMouseEnter={e => { 
-                e.currentTarget.style.borderColor = "#6b9e84"; 
-                e.currentTarget.style.color = "#6b9e84"; 
-                e.currentTarget.style.background = "#f0f7f4"; 
+                e.currentTarget.style.borderColor = "#3b82f6"; 
+                e.currentTarget.style.color = "#3b82f6"; 
+                e.currentTarget.style.background = "#eff6ff"; 
               }}
               onMouseLeave={e => { 
                 e.currentTarget.style.borderColor = "#e2e8f0"; 
@@ -645,7 +645,7 @@ export default function AdminDashboardPage() {
           {/* ✅ ADD ADMIN FORM */}
           <div style={{ borderRadius: 18, padding: "20px", background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
-              <div style={{ width: 3, height: 18, borderRadius: 99, background: "linear-gradient(135deg,#6b9e84,#4d7760)" }} />
+              <div style={{ width: 3, height: 18, borderRadius: 99, background: "linear-gradient(135deg,#3b82f6,#2563eb)" }} />
               <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>เพิ่มผู้ดูแลระบบ</h2>
             </div>
             <form onSubmit={handleAddAdmin} style={{ display: "flex", flexDirection: "column", gap: 11 }}>
@@ -695,7 +695,7 @@ export default function AdminDashboardPage() {
               </Field>
 
               <button type="submit" disabled={loading}
-                style={{ width: "100%", padding: "11px", marginTop: 4, borderRadius: 11, border: "none", fontSize: 14, fontWeight: 700, color: "#fff", cursor: loading ? "not-allowed" : "pointer", background: loading ? "#cbd5e1" : "linear-gradient(135deg,#6b9e84,#4d7760)", boxShadow: "0 4px 14px rgba(107,158,132,0.3)", transition: "all 0.2s" }}>
+                style={{ width: "100%", padding: "11px", marginTop: 4, borderRadius: 11, border: "none", fontSize: 14, fontWeight: 700, color: "#fff", cursor: loading ? "not-allowed" : "pointer", background: loading ? "#cbd5e1" : "linear-gradient(135deg,#3b82f6,#2563eb)", boxShadow: "0 4px 14px rgba(59,130,246,0.3)", transition: "all 0.2s" }}>
                 {loading ? "กำลังส่งคำเชิญ..." : "+ เพิ่มผู้ดูแลระบบ"}
               </button>
             </form>
@@ -775,15 +775,15 @@ export default function AdminDashboardPage() {
             <div style={{ borderRadius: 18, padding: "20px", background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 3, height: 18, borderRadius: 99, background: "linear-gradient(180deg,#6b9e84,#4d7760)" }} />
-                  <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>รายชื่อบุคลากรในหน่วยงาน</h2>
-                  <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#f0f7f4", color: "#6b9e84", fontWeight: 600, border: "1px solid #c2e0d1" }}>{filtered.length} คน</span>
+                  <div style={{ width: 3, height: 18, borderRadius: 99, background: "linear-gradient(180deg,#3b82f6,#2563eb)" }} />
+                  <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>รายชื่อบุคลากรในหน่วยงานของคุณ</h2>
+                  <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eff6ff", color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe" }}>{filtered.length} คน</span>
                 </div>
                 <div style={{ position: "relative" }}>
                   <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                   <input placeholder="ค้นหาชื่อ..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     style={{ ...inputBase, width: 210, paddingLeft: 32, fontSize: 13 }}
-                    onFocus={e => { e.currentTarget.style.borderColor = "#6b9e84"; e.currentTarget.style.background = "#f0f7f4"; }}
+                    onFocus={e => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.background = "#eff6ff"; }}
                     onBlur={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#f8fafc"; }} />
                 </div>
               </div>
@@ -824,9 +824,9 @@ export default function AdminDashboardPage() {
                             {row.position ? (
                               <span style={{
                                 fontSize: 11, padding: "3px 10px", borderRadius: 99, fontWeight: 600, whiteSpace: "nowrap",
-                                background: isAdmin ? "#f0f7f4" : "#f0fdf4",
-                                color: isAdmin ? "#6b9e84" : "#16a34a",
-                                border: `1px solid ${isAdmin ? "#c2e0d1" : "#bbf7d0"}`,
+                                background: isAdmin ? "#eff6ff" : "#f0fdf4",
+                                color: isAdmin ? "#3b82f6" : "#16a34a",
+                                border: `1px solid ${isAdmin ? "#bfdbfe" : "#bbf7d0"}`,
                               }}>
                                 {row.position}
                               </span>
@@ -839,9 +839,9 @@ export default function AdminDashboardPage() {
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                               {!isAdmin && (
                                 <button onClick={() => handleOpenEdit(row)}
-                                  style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #c2e0d1", background: "#f0f7f4", color: "#6b9e84", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
-                                  onMouseEnter={e => e.currentTarget.style.background = "#d9eee7"}
-                                  onMouseLeave={e => e.currentTarget.style.background = "#f0f7f4"}>
+                                  style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #bfdbfe", background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+                                  onMouseEnter={e => e.currentTarget.style.background = "#dbeafe"}
+                                  onMouseLeave={e => e.currentTarget.style.background = "#eff6ff"}>
                                   แก้ไข
                                 </button>
                               )}
@@ -862,11 +862,11 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* ✅ SUPPORT REQUESTS SECTION */}
-            <div style={{ borderRadius: 18, padding: "20px", background: "#fff", border: "1.5px solid #6b9e84", boxShadow: "0 4px 16px rgba(107,158,132,0.08)" }}>
+            <div style={{ borderRadius: 18, padding: "20px", background: "#fff", border: "1.5px solid #3b82f6", boxShadow: "0 4px 16px rgba(59,130,246,0.08)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                <div style={{ width: 3, height: 18, borderRadius: 99, background: "#6b9e84" }} />
+                <div style={{ width: 3, height: 18, borderRadius: 99, background: "#3b82f6" }} />
                 <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>📥 รายการแจ้งปัญหา / ปัญหาการเข้าสู่ระบบ</h2>
-                <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#f0f7f4", color: "#6b9e84", fontWeight: 600, border: "1px solid #c2e0d1", marginLeft: "auto" }}>
+                <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eff6ff", color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe", marginLeft: "auto" }}>
                   {supportRequests.length} เรื่องที่ค้างอยู่
                 </span>
               </div>
@@ -874,11 +874,11 @@ export default function AdminDashboardPage() {
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
-                    <tr style={{ background: "#f0f7f4", borderBottom: "1.5px solid #c2e0d1" }}>
-                      <th style={{ padding: "12px 10px", textAlign: "left", color: "#4d7760", fontWeight: 600, width: "20%" }}>ข้อมูลติดต่อกลับ</th>
-                      <th style={{ padding: "12px 10px", textAlign: "left", color: "#4d7760", fontWeight: 600, width: "50%" }}>รายละเอียดปัญหา</th>
-                      <th style={{ padding: "12px 10px", textAlign: "center", color: "#4d7760", fontWeight: 600, width: "15%" }}>เวลาที่แจ้ง</th>
-                      <th style={{ padding: "12px 10px", textAlign: "center", color: "#4d7760", fontWeight: 600, width: "15%" }}>การจัดการ</th>
+                    <tr style={{ background: "#eff6ff", borderBottom: "1.5px solid #bfdbfe" }}>
+                      <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "20%" }}>ข้อมูลติดต่อกลับ</th>
+                      <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "50%" }}>รายละเอียดปัญหา</th>
+                      <th style={{ padding: "12px 10px", textAlign: "center", color: "#2563eb", fontWeight: 600, width: "15%" }}>เวลาที่แจ้ง</th>
+                      <th style={{ padding: "12px 10px", textAlign: "center", color: "#2563eb", fontWeight: 600, width: "15%" }}>การจัดการ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -908,19 +908,19 @@ export default function AdminDashboardPage() {
                               disabled={resolvingRequestId === req.id}
                               style={{
                                 padding: "6px 12px", borderRadius: 8, border: "none", 
-                                background: resolvingRequestId === req.id ? "#cbd5e1" : "#6b9e84",
+                                background: resolvingRequestId === req.id ? "#cbd5e1" : "#3b82f6",
                                 color: "#fff", fontSize: 12, fontWeight: 600, 
                                 cursor: resolvingRequestId === req.id ? "not-allowed" : "pointer", 
                                 transition: "all 0.2s"
                               }}
                               onMouseEnter={e => { 
                                 if (resolvingRequestId !== req.id) {
-                                  e.currentTarget.style.background = "#4d7760";
+                                  e.currentTarget.style.background = "#2563eb";
                                 }
                               }}
                               onMouseLeave={e => { 
                                 if (resolvingRequestId !== req.id) {
-                                  e.currentTarget.style.background = "#6b9e84";
+                                  e.currentTarget.style.background = "#3b82f6";
                                 }
                               }}>
                               {resolvingRequestId === req.id ? "กำลัง..." : "✓ ติดต่อแล้ว"}
@@ -977,7 +977,7 @@ export default function AdminDashboardPage() {
                   style={{
                     flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13,
                     fontWeight: 600, color: "#fff", cursor: editLoading ? "not-allowed" : "pointer",
-                    background: editLoading ? "#cbd5e1" : "#6b9e84", transition: "all 0.2s",
+                    background: editLoading ? "#cbd5e1" : "#3b82f6", transition: "all 0.2s",
                   }}>
                   {editLoading ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
                 </button>
@@ -1031,7 +1031,7 @@ export default function AdminDashboardPage() {
                   style={{
                     flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13,
                     fontWeight: 600, color: "#fff", cursor: adminProfileLoading ? "not-allowed" : "pointer",
-                    background: adminProfileLoading ? "#cbd5e1" : "#6b9e84", transition: "all 0.2s",
+                    background: adminProfileLoading ? "#cbd5e1" : "#3b82f6", transition: "all 0.2s",
                   }}>
                   {adminProfileLoading ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
                 </button>
