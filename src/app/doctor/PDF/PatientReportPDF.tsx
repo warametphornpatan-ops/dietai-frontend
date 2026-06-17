@@ -278,7 +278,6 @@ const ReportDocument = ({
             <PdfText style={styles.patientInfoText}>ชื่อ-นามสกุล: {patientData.firstName} {patientData.lastName}</PdfText>
             <PdfText style={styles.patientInfoText}>ส่วนสูง: {patientData.heightCm || "—"} ซม.</PdfText>
             <PdfText style={styles.patientInfoText}>น้ำหนัก: {patientData.weightKg || "—"} กก.</PdfText>
-            <PdfText style={styles.patientInfoText}>เป้าหมายน้ำหนัก: {patientData.targetWeightKg || "—"} กก.</PdfText>
             <PdfText style={[styles.patientInfoText, { minWidth: '100%', marginTop: 4, color: '#dc2626' }]}>
               ประวัติการแพ้อาหาร: {patientData.allergies && patientData.allergies.length > 0 ? patientData.allergies.join(', ') : "ไม่มีประวัติการแพ้อาหาร"}
             </PdfText>
