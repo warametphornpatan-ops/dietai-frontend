@@ -320,7 +320,7 @@ export default function AdminDashboardPage() {
     setUserSearch("");
     setUsersLoading(true);
     try {
-      const res = await fetch(`${API_URL}/admins/users`, { headers: getAuthHeaders() });
+      const res = await fetch(`${API_URL}/admins/list-all-users`,  { headers: getAuthHeaders() });
       if (res.ok) {
         const data: UsersListResponse = await res.json();
         setAllUsers(data.users || []);
