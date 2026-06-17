@@ -38,6 +38,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // 🛠️ State สำหรับเปิด-ปิด Modal และคุมฟอร์มติดต่อเจ้าหน้าที่
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [contactInfo, setContactInfo] = useState(""); // เก็บเบอร์โทรหรืออีเมล
+  const [requestType, setRequestType] = useState("forgot_username");
+  const [description, setDescription] = useState("");
+  const [sendingSupport, setSendingSupport] = useState(false);
+
   useEffect(() => { setMounted(true); }, []);
 
   async function handleCheckOrg() {
@@ -52,6 +59,42 @@ export default function LoginPage() {
       else { const data = await res.json() as { name: string }; setOrgName(data.name); }
     } catch { alert("เกิดข้อผิดพลาดในการตรวจสอบรหัสหน่วยงาน"); }
     finally { setCheckingOrg(false); }
+  }
+
+  // 🛠️ ฟังก์ชันยิง API ส่งคำร้องขอลืมรหัสผ่าน/Username เข้า support_requests
+  async function handleSupportSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!contactInfo.trim() || !description.trim()) {
+      alert("กรุณากรอกข้อมูลติดต่อกลับและรายละเอียดปัญหา");
+      return;
+    }
+
+    setSendingSupport(true);
+    try {
+      const res = await fetch(`${API_URL}/support-requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: contactInfo.trim(), // ส่งเข้าฟิลด์ email ในตารางฐานข้อมูล (รองรับสายอักขระยาว)
+          request_type: requestType,
+          description: description.trim(),
+        }),
+      });
+
+      if (res.ok) {
+        alert("ส่งคำร้องเรียนสำเร็จ! เจ้าหน้าที่จะตรวจสอบและติดต่อกลับโดยเร็วที่สุด");
+        setContactInfo("");
+        setDescription("");
+        setShowSupportModal(false);
+      } else {
+        const data = await res.json() as { detail?: string };
+        alert(data.detail || "เกิดข้อผิดพลาดในการส่งคำร้อง");
+      }
+    } catch {
+      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อส่งคำร้องได้");
+    } finally {
+      setSendingSupport(false);
+    }
   }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -72,7 +115,6 @@ export default function LoginPage() {
       let detectedRole = "user";
 
       if (loginType === "user") {
-        // ✅ ผู้ใช้งานทั่วไป → login เป็น user เท่านั้น
         res = await fetch(`${API_URL}/user/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -84,7 +126,6 @@ export default function LoginPage() {
         detectedRole = "user";
 
       } else {
-        // ✅ เจ้าหน้าที่ → ลองแพทย์ก่อน ถ้าไม่ได้ลองแอดมิน
         const docRes = await fetch(`${API_URL}/doctors/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -99,13 +140,10 @@ export default function LoginPage() {
         const isDocSuccess = docRes.ok && !docData.error && (docData.access_token || docData.token);
 
         if (isDocSuccess) {
-          // ✅ แพทย์สำเร็จ — หยุดตรงนี้ ไม่ลองแอดมิน (JWT มี position)
           res = docRes;
           data = docData;
           detectedRole = "doctor";
-
         } else {
-          // ── ไม่ใช่แพทย์ → ลองแอดมิน ──
           const adminRes = await fetch(`${API_URL}/admins/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -124,7 +162,6 @@ export default function LoginPage() {
             data = adminData;
             detectedRole = "admin";
           } else {
-            // ❌ ทั้งคู่ล้มเหลว — ใช้ error จากแอดมิน (ชัดเจนกว่า)
             res = adminRes;
             data = adminData.detail ? adminData : docData;
           }
@@ -132,17 +169,12 @@ export default function LoginPage() {
       }
 
       if (!res.ok || data.error) {
-        // ✅ แปลง error message ให้เข้าใจ
         let errorMsg = "เข้าสู่ระบบไม่สำเร็จ";
-        
         if (data.detail) {
           const detail = String(data.detail);
-          
-          // ✅ Priority 1: ถ้า backend ส่งมาแบบชัดเจนแล้ว (มี ❌ อยู่) ให้ใช้เลย
           if (detail.includes("❌")) {
             errorMsg = detail;
           } else {
-            // ✅ Priority 2: ถ้าส่งมาเป็นภาษาไทยแบบเต็ม ให้แปลง
             const detailLower = detail.toLowerCase();
             if (detailLower.includes("username") || detailLower.includes("not found") || detailLower.includes("ไม่พบชื่อ")) {
               errorMsg = "❌ ไม่พบชื่อผู้ใช้นี้ในระบบ";
@@ -159,7 +191,6 @@ export default function LoginPage() {
         } else {
           errorMsg = "❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
         }
-        
         alert(errorMsg);
         return;
       }
@@ -231,7 +262,6 @@ export default function LoginPage() {
       >
         <h2 className="text-lg font-semibold text-center mb-5" style={{ color: '#0d4f2e' }}>เข้าสู่ระบบ</h2>
 
-        {/* ✅ Toggle สำหรับเลือก User หรือ Staff */}
         <div className="flex rounded-xl p-1 mb-5" style={{ background: '#f0faf5' }}>
           {(['user', 'staff'] as LoginType[]).map((t) => (
             <button
@@ -249,7 +279,6 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={submit} className="flex flex-col gap-4">
-
           {loginType === "staff" && (
             <div>
               <label className="block text-sm font-medium mb-1.5" style={{ color: '#2d7055' }}>รหัสหน่วยงาน</label>
@@ -263,8 +292,6 @@ export default function LoginPage() {
                   onChange={(e) => { setForm(p => ({ ...p, org_code: e.target.value })); setOrgName(""); setOrgVerified(false); }}
                   className="flex-1 rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all duration-200"
                   style={{ background: '#f4fbf7', border: '1.5px solid #c8e8d8', color: '#0d4f2e' }}
-                  onFocus={e => e.currentTarget.style.borderColor = '#16a360'}
-                  onBlur={e => e.currentTarget.style.borderColor = '#c8e8d8'}
                 />
                 <button
                   type="button"
@@ -299,8 +326,6 @@ export default function LoginPage() {
               onChange={(e) => setForm(p => ({ ...p, username: e.target.value }))}
               className="w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all duration-200"
               style={{ background: '#f4fbf7', border: '1.5px solid #c8e8d8', color: '#0d4f2e' }}
-              onFocus={e => e.currentTarget.style.borderColor = '#16a360'}
-              onBlur={e => e.currentTarget.style.borderColor = '#c8e8d8'}
             />
           </div>
 
@@ -315,8 +340,6 @@ export default function LoginPage() {
                 onChange={(e) => setForm(p => ({ ...p, password: e.target.value }))}
                 className="w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all duration-200 pr-10"
                 style={{ background: '#f4fbf7', border: '1.5px solid #c8e8d8', color: '#0d4f2e' }}
-                onFocus={e => e.currentTarget.style.borderColor = '#16a360'}
-                onBlur={e => e.currentTarget.style.borderColor = '#c8e8d8'}
               />
               <button
                 type="button"
@@ -360,8 +383,98 @@ export default function LoginPage() {
             ลืมรหัสผ่าน?{' '}
             <Link href="/reset-password" className="font-medium hover:underline" style={{ color: '#16a360' }}>รีเซ็ตรหัสผ่าน</Link>
           </p>
+          {/* 🛠️ เพิ่มปุ่ม ลืมชื่อผู้ใช้งาน / ติดต่อเจ้าหน้าที่ ในธีมสีและสไตล์เดิมของคุณ */}
+          <p className="text-xs" style={{ color: '#6b9e84' }}>
+            ลืมชื่อผู้ใช้ / พบปัญหา?{' '}
+            <button 
+              type="button"
+              onClick={() => setShowSupportModal(true)} 
+              className="font-medium hover:underline focus:outline-none" 
+              style={{ color: '#16a360' }}
+            >
+              ติดต่อเจ้าหน้าที่
+            </button>
+          </p>
         </div>
       </div>
+
+      {/* 🛠️ ส่วนแสดงโครงสร้างหน้าต่างป๊อปอัพ (Support Modal) เมื่อแอดมินหรือผู้ใช้กดคลิกปุ่ม */}
+      {showSupportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div 
+            className="w-full max-w-md bg-white p-6 rounded-3xl border shadow-2xl relative"
+            style={{ borderColor: 'rgba(22,163,97,0.15)' }}
+          >
+            <h3 className="text-lg font-bold mb-1" style={{ color: '#0d4f2e' }}>แจ้งปัญหาการเข้าสู่ระบบ</h3>
+            <p className="text-xs mb-4" style={{ color: '#6b9e84' }}>กรุณากรอกข้อมูลจริงเพื่อให้เจ้าหน้าที่สามารถตรวจสอบและประสานงานกลับได้อย่างถูกต้อง</p>
+
+            <form onSubmit={handleSupportSubmit} className="space-y-4">
+              {/* ช่องกรอกข้อมูลติดต่อกลับ (อีเมล หรือ เบอร์โทร ก็ได้ตามสะดวก) */}
+              <div>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#2d7055' }}>ช่องทางการติดต่อกลับ (อีเมล หรือ เบอร์โทรศัพท์)</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="เช่น 081-2345678 หรือ somchai@email.com"
+                  value={contactInfo}
+                  onChange={(e) => setContactInfo(e.target.value)}
+                  className="w-full rounded-xl px-3.5 py-2.5 text-sm outline-none border transition-all"
+                  style={{ background: '#f4fbf7', borderColor: '#c8e8d8', color: '#0d4f2e' }}
+                />
+              </div>
+
+              {/* เมนูประเภทของคำร้อง */}
+              <div>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#2d7055' }}>ประเภทปัญหาที่พบ</label>
+                <select
+                  value={requestType}
+                  onChange={(e) => setRequestType(e.target.value)}
+                  className="w-full rounded-xl px-3.5 py-2.5 text-sm outline-none border bg-white"
+                  style={{ background: '#f4fbf7', borderColor: '#c8e8d8', color: '#0d4f2e' }}
+                >
+                  <option value="forgot_username">🔍 ลืมชื่อผู้ใช้งาน (Username)</option>
+                  <option value="forgot_password">🔒 ลืมรหัสผ่าน / บัญชีถูกล็อก</option>
+                  <option value="other">⚠️ ปัญหาทางเทคนิคอื่นๆ</option>
+                </select>
+              </div>
+
+              {/* ช่องกรอกรายละเอียดข้อความอธิบายเพิ่มเติม */}
+              <div>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#2d7055' }}>รายละเอียดความต้องการ (ระบุชื่อ-นามสกุลจริง)</label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="ตัวอย่างเช่น: นายสมชาย ใจดี ต้องการขอทราบชื่อผู้ใช้งานเนื่องจากลืมครับ"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full rounded-xl px-3.5 py-2.5 text-sm outline-none border transition-all"
+                  style={{ background: '#f4fbf7', borderColor: '#c8e8d8', color: '#0d4f2e' }}
+                />
+              </div>
+
+              {/* ปุ่มการทำงานกดยกเลิก หรือ กดตกลงส่งข้อมูลคำร้องเรียน */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSupportModal(false)}
+                  className="w-1/2 py-2.5 rounded-xl border text-sm font-semibold transition-all hover:bg-gray-50"
+                  style={{ color: '#6b9e84', borderColor: '#c8e8d8' }}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingSupport}
+                  className="w-1/2 py-2.5 rounded-xl text-white text-sm font-semibold transition-all"
+                  style={{ background: 'linear-gradient(135deg, #16a360, #0d8a4f)', opacity: sendingSupport ? 0.6 : 1 }}
+                >
+                  {sendingSupport ? "กำลังส่ง..." : "ส่งข้อมูล"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: "24px", textAlign: "center", fontSize: "12px", color: "#6b9e84" }}>
         <p className="text-xs font-medium" style={{ color: '#4a7c62' }}>
