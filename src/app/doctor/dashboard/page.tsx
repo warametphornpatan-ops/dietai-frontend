@@ -549,7 +549,7 @@ export default function DoctorDashboard() {
             {/* Header ของ Modal */}
             <div style={{ padding: "20px 24px", borderBottom: `1px solid ${T.borderLight}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: T.bg }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.text, display: "flex", alignItems: "center", gap: 10 }}>
-                📊 ประวัติการเปลี่ยนแปลงสัดส่วน
+                📊 ประวัติการเปลี่ยนแปลง
               </h2>
               <button onClick={() => setIsHistoryModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, padding: 4 }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
