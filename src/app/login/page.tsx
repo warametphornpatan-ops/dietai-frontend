@@ -123,6 +123,7 @@ export default function LoginPage() {
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportForm, setSupportForm] = useState({
     contact_info: "",
+    name: "",                                    // ✅ เพิ่ม field ชื่อ-นามสกุล
     request_type: "forgot_username" as RequestType,
     description: "",
   });
@@ -162,8 +163,9 @@ export default function LoginPage() {
   async function handleSupportSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!supportForm.contact_info.trim() || !supportForm.description.trim()) {
-      alert("กรุณากรอกข้อมูลติดต่อกลับและรายละเอียดปัญหา");
+    // ✅ เพิ่ม validate name
+    if (!supportForm.contact_info.trim() || !supportForm.name.trim() || !supportForm.description.trim()) {
+      alert("กรุณากรอกข้อมูลติดต่อกลับ ชื่อ-นามสกุล และรายละเอียดปัญหา");
       return;
     }
 
@@ -174,6 +176,7 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: supportForm.contact_info.trim(),
+          name: supportForm.name.trim(),         // ✅ ส่ง name ไปด้วย
           request_type: supportForm.request_type,
           description: supportForm.description.trim(),
         }),
@@ -183,6 +186,7 @@ export default function LoginPage() {
         alert("✅ ส่งคำร้องเรียนสำเร็จ! เจ้าหน้าที่จะติดต่อกลับในเร็วๆ นี้");
         setSupportForm({
           contact_info: "",
+          name: "",                              // ✅ reset name ด้วย
           request_type: "forgot_username",
           description: "",
         });
@@ -616,6 +620,25 @@ export default function LoginPage() {
                 />
               </div>
 
+              {/* ✅ ชื่อ-นามสกุล (field ใหม่) */}
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: COLOR.darkLabel }}>
+                  👤 ชื่อ-นามสกุล
+                </label>
+                <input
+                  type="text"
+                  placeholder="กรอกชื่อ-นามสกุลของคุณ"
+                  value={supportForm.name}
+                  onChange={(e) => setSupportForm((p) => ({ ...p, name: e.target.value }))}
+                  className="w-full rounded-xl px-3.5 py-2.5 text-sm outline-none border transition-all"
+                  style={{
+                    background: COLOR.lightBg,
+                    borderColor: COLOR.lightBorder,
+                    color: COLOR.dark,
+                  }}
+                />
+              </div>
+
               {/* Request Type */}
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: COLOR.darkLabel }}>
@@ -645,11 +668,11 @@ export default function LoginPage() {
               {/* Description */}
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: COLOR.darkLabel }}>
-                  📝 รายละเอียด
+                  📝 รายละเอียดปัญหา
                 </label>
                 <textarea
                   rows={4}
-                  placeholder="ระบุชื่อ-นามสกุล และรายละเอียดปัญหา"
+                  placeholder="ระบุรายละเอียดปัญหาที่พบ"
                   value={supportForm.description}
                   onChange={(e) =>
                     setSupportForm((p) => ({ ...p, description: e.target.value }))
