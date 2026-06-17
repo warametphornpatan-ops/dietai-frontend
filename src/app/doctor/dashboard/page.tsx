@@ -22,6 +22,15 @@ type DoctorProfile = {
   position: string; doctorId: string; orgCode: string;
 };
 
+// ✅ เพิ่ม Type สำหรับประวัติการเปลี่ยนแปลง
+type ProfileHistory = {
+  id: number; 
+  weightKg: number | null;
+  heightCm: number | null;
+  healthInfo: string | null;
+  createdAt: string;
+};
+
 const T = {
   bg: "#f0f4f8", white: "#ffffff", border: "#e2e8f0", borderLight: "#f1f5f9",
   text: "#1e293b", textSub: "#64748b", textMuted: "#94a3b8",
@@ -77,7 +86,6 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
   );
 }
 
-// ✅ ตรวจว่า keyword เป็นเลขล้วนไหม → ถ้าใช่ = ค้นหาด้วยเลขบัตร
 const isDigitOnly = (s: string) => /^\d+$/.test(s.trim());
 
 export default function DoctorDashboard() {
@@ -92,6 +100,11 @@ export default function DoctorDashboard() {
   const [pulseInput, setPulseInput] = useState("");
   const [recInput, setRecInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ✅ State สำหรับ Modal ประวัติการเปลี่ยนแปลง
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [profileHistoryData, setProfileHistoryData] = useState<ProfileHistory[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const handleLogout = () => {
     if (window.confirm("คุณต้องการออกจากระบบหรือไม่?")) {
@@ -113,14 +126,13 @@ export default function DoctorDashboard() {
       const firstName = (decoded.first_name || decoded.firstName || "แพทย์") as string;
       const lastName = (decoded.last_name || decoded.lastName || "") as string;
       const orgCode = (decoded.org_code || decoded.orgCode || "") as string;
-      // ✅ แก้: เพิ่ม fallback หลายชื่อ field สำหรับ position
       const position = (decoded.position || decoded.role_title || decoded.title || "") as string;
       const username = (decoded.username || decoded.sub || "") as string;
 
       setDoctorProfile({
         hospitalName: "กำลังโหลดข้อมูลสถานพยาบาล...",
         firstName, lastName,
-        position,   // ← จะแสดงถ้า JWT มี field นี้
+        position, 
         doctorId: username,
         orgCode
       });
@@ -141,7 +153,6 @@ export default function DoctorDashboard() {
     }
   }, [router]);
 
-  // ✅ แก้: ตรวจ keyword แล้วเลือก query param เอง ไม่ต้องพึ่ง tab
   const loadPatients = useCallback(async (kw: string) => {
     if (!kw.trim()) { setPatients([]); return; }
     try {
@@ -186,7 +197,26 @@ export default function DoctorDashboard() {
     finally { setIsSubmitting(false); }
   };
 
-  // ✅ แก้: filteredNames แยก logic ตามว่าเป็นเลขหรือชื่อ
+  // ✅ ฟังก์ชันดึงข้อมูลประวัติรายบุคคลเมื่อกดปุ่ม Modal
+  const fetchProfileHistory = async (patientId: string) => {
+    setIsHistoryModalOpen(true);
+    setIsLoadingHistory(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/doctors/patients/${patientId}/profile-history`);
+      if (res.ok) {
+        const data = await res.json();
+        setProfileHistoryData(data);
+      } else {
+        setProfileHistoryData([]);
+      }
+    } catch (error) {
+      console.error("Error fetching history:", error);
+      setProfileHistoryData([]);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
   const filteredNames = useMemo(() => {
     const map = new Map<string, Patient>();
     const s = keyword.trim().toLowerCase();
@@ -241,7 +271,7 @@ export default function DoctorDashboard() {
           </button>
         </div>
 
-        {/* ✅ Search — ช่องเดียว ไม่มี Tab */}
+        {/* Search */}
         {!selected && (
           <div style={{ position: "relative" }}>
             <svg style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: T.textMuted }}
@@ -257,7 +287,6 @@ export default function DoctorDashboard() {
               onFocus={e => { e.currentTarget.style.borderColor = T.accent; }}
               onBlur={e => { e.currentTarget.style.borderColor = T.border; }}
             />
-            {/* ✅ Badge บอก mode ปัจจุบัน */}
             {keyword && (
               <span style={{
                 position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)",
@@ -290,19 +319,18 @@ export default function DoctorDashboard() {
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 14, color: T.text }}>{p.firstName} {p.lastName}</div>
                       <div style={{ fontSize: 11, color: T.textMuted }}>
-                        {/* ✅ แสดงเลขบัตรถ้ามี ไม่งั้นแสดง userId */}
                         {p.citizenId ? `บัตร: ${p.citizenId}` : `รหัส: ${uid.substring(0, 8)}...`}
                       </div>
                     </div>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: T.accent, background: T.accentLight, border: `1px solid ${T.accentBorder}`, padding: "3px 10px", borderRadius: 99 }}>ดูประวัติ</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: T.accent, background: T.accentLight, border: `1px solid ${T.accentBorder}`, padding: "3px 10px", borderRadius: 99 }}>เปิดข้อมูล</span>
                 </button>
               );
             })}
           </div>
         )}
 
-        {/* Patient Detail — เหมือนเดิมทุกอย่าง */}
+        {/* Patient Detail */}
         {selected && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <button onClick={() => { setSelected(null); setKeyword(""); }}
@@ -338,6 +366,16 @@ export default function DoctorDashboard() {
                       ) : (
                         <span style={{ fontSize: 12, fontWeight: 500, background: T.bg, border: `1px solid ${T.border}`, padding: "3px 12px", borderRadius: 99, color: T.green }}>ไม่มีประวัติการแพ้อาหาร</span>
                       )}
+
+                      {/* ✅ ปุ่มกดเพื่อเปิด Modal ดูประวัติการเปลี่ยนแปลง */}
+                      <button
+                        onClick={() => fetchProfileHistory(selected.id || selected.userId || "")}
+                        style={{
+                          fontSize: 12, fontWeight: 600, color: T.white, background: T.indigo, border: "none", padding: "4px 12px", borderRadius: 99, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, boxShadow: T.shadow
+                        }}
+                      >
+                        📊 ดูประวัติการเปลี่ยนแปลง
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -459,6 +497,7 @@ export default function DoctorDashboard() {
                       </form>
                     </div>
 
+                    {/* ✅ ส่วนที่เขียนไม่จบ ปิดแท็กให้เรียบร้อยแล้ว */}
                     {selected.healthRecords && selected.healthRecords.length > 0 && (
                       <Section title="ประวัติการตรวจก่อนหน้า" icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><line x1="16" x2="8" y1="13" y2="13" /></svg>}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 380, overflowY: "auto", paddingRight: 2 }}>
@@ -467,14 +506,23 @@ export default function DoctorDashboard() {
                               <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: `linear-gradient(180deg,${T.indigo},#818cf8)`, borderRadius: "0 0 0 12px" }} />
                               <div style={{ paddingLeft: 10 }}>
                                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                                  <span style={{ fontSize: 11, fontWeight: 700, color: T.indigo, background: T.indigoLight, padding: "2px 8px", borderRadius: 99 }}>
-                                    {new Date(rec.createdAt).toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: T.indigo, background: T.indigoLight, padding: "3px 8px", borderRadius: 99 }}>
+                                    {new Date(rec.createdAt).toLocaleDateString("th-TH")}
                                   </span>
-                                  <span style={{ fontSize: 11, color: T.textSub, background: T.bg, border: `1px solid ${T.border}`, padding: "2px 7px", borderRadius: 99 }}>
-                                    SYS: {rec.systolic ?? "—"} | DIA: {rec.diastolic ?? "—"} | Pulse: {rec.pulse ?? "—"}
-                                  </span>
+                                  {rec.systolic && rec.diastolic && (
+                                    <span style={{ fontSize: 12, color: T.textSub, fontWeight: 500 }}>
+                                      ความดัน: {rec.systolic}/{rec.diastolic}
+                                    </span>
+                                  )}
+                                  {rec.pulse && (
+                                    <span style={{ fontSize: 12, color: T.textSub, fontWeight: 500 }}>
+                                      ชีพจร: {rec.pulse}
+                                    </span>
+                                  )}
                                 </div>
-                                <p style={{ margin: 0, fontSize: 13, color: T.text, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{rec.recommendation}</p>
+                                <div style={{ fontSize: 13, color: T.text, lineHeight: 1.5 }}>
+                                  {rec.recommendation}
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -487,7 +535,81 @@ export default function DoctorDashboard() {
             </div>
           </div>
         )}
+
       </div>
+
+      {/* ✅ Modal แสดงประวัติการเปลี่ยนแปลง */}
+      {isHistoryModalOpen && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15,23,42,0.4)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20
+        }}>
+          <div style={{ background: T.white, width: "100%", maxWidth: 600, borderRadius: 20, boxShadow: T.shadowMd, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "85vh" }}>
+            
+            {/* Header ของ Modal */}
+            <div style={{ padding: "20px 24px", borderBottom: `1px solid ${T.borderLight}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: T.bg }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.text, display: "flex", alignItems: "center", gap: 10 }}>
+                📊 ประวัติการเปลี่ยนแปลงสัดส่วน
+              </h2>
+              <button onClick={() => setIsHistoryModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, padding: 4 }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+
+            {/* เนื้อหาใน Modal */}
+            <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
+              {isLoadingHistory ? (
+                <div style={{ textAlign: "center", padding: "40px", color: T.textMuted, fontSize: 14 }}>
+                  กำลังโหลดข้อมูล...
+                </div>
+              ) : profileHistoryData.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px", color: T.textMuted, fontSize: 14 }}>
+                  ไม่พบข้อมูลประวัติการเปลี่ยนแปลง
+                </div>
+              ) : (
+                <div style={{ borderRadius: 12, border: `1px solid ${T.border}`, overflow: "hidden" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: T.bg, borderBottom: `1px solid ${T.border}` }}>
+                        <th style={{ padding: "12px", textAlign: "left", color: T.textSub, fontWeight: 600 }}>วัน/เวลา</th>
+                        <th style={{ padding: "12px", textAlign: "center", color: T.textSub, fontWeight: 600 }}>น้ำหนัก (กก.)</th>
+                        <th style={{ padding: "12px", textAlign: "center", color: T.textSub, fontWeight: 600 }}>ส่วนสูง (ซม.)</th>
+                        <th style={{ padding: "12px", textAlign: "left", color: T.textSub, fontWeight: 600 }}>การแพ้อาหาร</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profileHistoryData.map((row, idx) => (
+                        <tr key={row.id} style={{ borderBottom: idx < profileHistoryData.length - 1 ? `1px solid ${T.borderLight}` : "none" }}>
+                          <td style={{ padding: "12px", color: T.text }}>
+                            {new Date(row.createdAt).toLocaleString("th-TH", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </td>
+                          <td style={{ padding: "12px", textAlign: "center", color: T.text, fontWeight: 500 }}>
+                            {row.weightKg || "-"}
+                          </td>
+                          <td style={{ padding: "12px", textAlign: "center", color: T.text, fontWeight: 500 }}>
+                            {row.heightCm || "-"}
+                          </td>
+                          <td style={{ padding: "12px", color: T.rose, fontSize: 12 }}>
+                            {row.healthInfo && row.healthInfo !== "EMPTY" ? row.healthInfo : "-"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Footer ของ Modal */}
+            <div style={{ padding: "16px 24px", borderTop: `1px solid ${T.borderLight}`, display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={() => setIsHistoryModalOpen(false)} style={{ padding: "8px 16px", borderRadius: 8, background: T.borderLight, color: T.text, border: "none", cursor: "pointer", fontWeight: 600 }}>
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
