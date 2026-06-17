@@ -84,6 +84,36 @@ const FOOD_MENU_IDS = [
   66, 71, 80, 2, 76, 78, 74,
 ];
 
+// ✅ Helper function สำหรับ refetch data จาก server
+async function refetchFoodData(userId: string) {
+  try {
+    const token = localStorage.getItem("token")?.replace(/"/g, "");
+    console.log("🔄 Refetching data from server...");
+    console.log("📤 User ID:", userId);
+    console.log("📤 Token:", token ? "exists" : "missing");
+
+    const response = await fetch(`${API_BASE}/foods/today/${userId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+      credentials: "include"
+    });
+
+    if (!response.ok) {
+      console.error("❌ Refetch failed with status:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log("✅ Refetch success:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Refetch error:", error);
+    return null;
+  }
+}
+
 // ----------------------------------------------------------------------
 // LocalStorage helpers
 // ----------------------------------------------------------------------
@@ -109,6 +139,40 @@ function setCurrentUserNutrition(cal: number, carb: number) {
       JSON.stringify({ cal, carb, date: today })
     );
   }
+}
+
+// ✅ Helper function ดึง userId จาก localStorage
+function getUserId(): string {
+  if (typeof window === "undefined") return "";
+  
+  // ลองดึงจาก user object
+  const userStr = localStorage.getItem("user");
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr);
+      return user?.id || user?.user_id || "";
+    } catch {
+      // ignore
+    }
+  }
+
+  // ลองดึงจาก userId key
+  const directUserId = localStorage.getItem("userId");
+  if (directUserId) return directUserId;
+
+  // ลองดึงจาก currentUser
+  const currentUserStr = localStorage.getItem("currentUser");
+  if (currentUserStr) {
+    try {
+      const currentUser = JSON.parse(currentUserStr);
+      return currentUser?.id || currentUser?.user_id || "";
+    } catch {
+      // ignore
+    }
+  }
+
+  console.warn("⚠️ Could not find userId in localStorage");
+  return "";
 }
 
 // ----------------------------------------------------------------------
@@ -145,10 +209,16 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     if (!open) return;
 
     if (beverages.length === 0) {
-      fetch("/api/foods?category=เครื่องดื่ม")
+      // ✅ แก้ API path ให้ใช้ ${API_BASE}
+      fetch(`${API_BASE}/foods?category=เครื่องดื่ม`)
         .then((r) => (r.ok ? r.json() : []))
-        .then((data: ThaiFoodMenu[]) => setBeverages(data))
-        .catch(console.error);
+        .then((data: ThaiFoodMenu[]) => {
+          console.log("✅ Beverages loaded:", data.length);
+          setBeverages(data);
+        })
+        .catch((err) => {
+          console.error("❌ Error loading beverages:", err);
+        });
     }
 
     // ✅ Fetch ข้อมูลไข่จากฐานข้อมูล (โดย MenuID)
@@ -156,32 +226,41 @@ export default function FoodUploadModal({ open, onClose }: Props) {
       const eggMenuIds = [68, 113, 114]; // MenuID ของไข่ 3 แบบ
       Promise.all(
         eggMenuIds.map((id) =>
-          fetch(`/api/foods?menuId=${id}`)
+          fetch(`${API_BASE}/foods?menuId=${id}`)
             .then((r) => (r.ok ? r.json() : []))
-            .catch(() => [])
+            .catch((err) => {
+              console.error(`Error loading egg ${id}:`, err);
+              return [];
+            })
         )
       )
         .then((results) => {
           const allEggs = results.flat().filter((e: ThaiFoodMenu) => e?.MenuID);
+          console.log("✅ Eggs loaded:", allEggs.length);
           setEggs(allEggs);
         })
-        .catch(console.error);
+        .catch((err) => {
+          console.error("❌ Error loading eggs:", err);
+        });
     }
 
     if (foodMenus.length === 0) {
       Promise.all([
-        fetch("/api/foods?category=ผลไม้").then((r) => (r.ok ? r.json() : [])),
-        fetch("/api/foods?category=ของหวาน").then((r) => (r.ok ? r.json() : [])),
-        fetch("/api/foods?category=อาหารคาว").then((r) => (r.ok ? r.json() : [])),
+        fetch(`${API_BASE}/foods?category=ผลไม้`).then((r) => (r.ok ? r.json() : [])),
+        fetch(`${API_BASE}/foods?category=ของหวาน`).then((r) => (r.ok ? r.json() : [])),
+        fetch(`${API_BASE}/foods?category=อาหารคาว`).then((r) => (r.ok ? r.json() : [])),
       ])
         .then(([fruits, desserts, mains]: [ThaiFoodMenu[], ThaiFoodMenu[], ThaiFoodMenu[]]) => {
           const all = [...fruits, ...desserts, ...mains];
           const ordered = FOOD_MENU_IDS
             .map((id) => all.find((f) => f.MenuID === id))
             .filter((f): f is ThaiFoodMenu => !!f);
+          console.log("✅ Food menus loaded:", ordered.length);
           setFoodMenus(ordered);
         })
-        .catch(console.error);
+        .catch((err) => {
+          console.error("❌ Error loading food menus:", err);
+        });
     }
   }, [open, beverages.length, foodMenus.length, eggs.length]);
 
@@ -287,8 +366,9 @@ export default function FoodUploadModal({ open, onClose }: Props) {
       const best = [...preds].sort((a, b) => b.confidence - a.confidence)[0];
       const targetName = (best.class ?? "").toString().trim();
 
+      // ✅ แก้ API path
       const dbRes = await fetch(
-        `/api/foods?aiName=${encodeURIComponent(targetName)}`
+        `${API_BASE}/foods?aiName=${encodeURIComponent(targetName)}`
       );
       if (!dbRes.ok) {
         setDetectError("ไม่พบข้อมูลอาหาร กรุณาเลือกเมนูด้วยตนเอง");
@@ -339,6 +419,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     return data as { url?: string };
   }
 
+  // ✅ แก้ saveNutrition: เพิ่ม refetch และ userId parameter
   async function saveNutrition(
     file: File | null,
     nutToAdd: { menu: string; cal: number; carb: number; protein: number; fat: number }
@@ -352,11 +433,23 @@ export default function FoodUploadModal({ open, onClose }: Props) {
           const uploadResult = await uploadImageToServer(file);
           if (uploadResult?.url) imageUrl = uploadResult.url;
         } catch (e) {
-          console.warn("upload image failed:", e);
+          console.warn("⚠️ upload image failed:", e);
         }
       }
 
       const token = localStorage.getItem("token")?.replace(/"/g, "");
+      
+      // 🔴 ตรวจสอบ endpoint path
+      console.log("📤 Sending POST to:", `${API_BASE}/foods/add`);
+      console.log("📋 Data:", {
+        food_name: nutToAdd.menu,
+        calories: nutToAdd.cal,
+        carbs: nutToAdd.carb,
+        protein: nutToAdd.protein,
+        fat: nutToAdd.fat,
+        image_url: imageUrl,
+      });
+
       const saveRes = await fetch(`${API_BASE}/foods/add`, {
         method: "POST",
         credentials: "include",
@@ -377,9 +470,30 @@ export default function FoodUploadModal({ open, onClose }: Props) {
       const contentType = saveRes.headers.get("content-type") || "";
       let data: unknown = {};
       if (contentType.includes("application/json")) data = await saveRes.json();
+      
       if (!saveRes.ok) {
         const err = data as { detail?: string; error?: string };
+        console.error("❌ Save error response:", err);
         throw new Error(err.detail || err.error || "บันทึกลงฐานข้อมูลไม่สำเร็จ");
+      }
+
+      console.log("✅ Save success:", data);
+
+      // ✅ เพิ่มจุดที่ 1: refetch data จาก server
+      const userId = getUserId();
+      if (userId) {
+        const freshData = await refetchFoodData(userId);
+        if (freshData) {
+          console.log("✅ Fresh data from server:", freshData);
+          // Dispatch event พร้อมข้อมูล fresh
+          window.dispatchEvent(
+            new CustomEvent("foodDataRefreshed", {
+              detail: freshData,
+            })
+          );
+        }
+      } else {
+        console.warn("⚠️ Could not refetch - no userId found");
       }
 
       if (typeof window !== "undefined") {
@@ -399,6 +513,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
 
       const current = getCurrentUserNutrition();
       setCurrentUserNutrition(current.cal + nutToAdd.cal, current.carb + nutToAdd.carb);
+      
       window.dispatchEvent(
         new CustomEvent("nutritionUpdated", {
           detail: { cal: nutToAdd.cal, carb: nutToAdd.carb, protein: nutToAdd.protein, fat: nutToAdd.fat },
@@ -407,6 +522,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
 
       return true;
     } catch (err: unknown) {
+      console.error("❌ Save error:", err);
       alert(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
       return false;
     } finally {
