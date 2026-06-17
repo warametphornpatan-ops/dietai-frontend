@@ -20,6 +20,7 @@ type StaffRow = {
 type SupportRequestRow = {
   id: number;
   contact_info: string;
+  name: string; 
   details: string;
   created_at: string;
   status: "pending" | "resolved";
@@ -939,11 +940,13 @@ export default function AdminDashboardPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: "#eff6ff", borderBottom: "1.5px solid #bfdbfe" }}>
-                      <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "20%" }}>ข้อมูลติดต่อกลับ</th>
-                      <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "50%" }}>รายละเอียดปัญหา</th>
-                      <th style={{ padding: "12px 10px", textAlign: "center", color: "#2563eb", fontWeight: 600, width: "15%" }}>เวลาที่แจ้ง</th>
-                      <th style={{ padding: "12px 10px", textAlign: "center", color: "#2563eb", fontWeight: 600, width: "15%" }}>การจัดการ</th>
-                    </tr>
+  <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "15%" }}>ข้อมูลติดต่อกลับ</th>
+  <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "15%" }}>ชื่อ-นามสกุล</th>  {/* ← เพิ่ม */}
+  <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "40%" }}>รายละเอียดปัญหา</th>
+  <th style={{ padding: "12px 10px", textAlign: "center", color: "#2563eb", fontWeight: 600, width: "15%" }}>เวลาที่แจ้ง</th>
+  <th style={{ padding: "12px 10px", textAlign: "center", color: "#2563eb", fontWeight: 600, width: "15%" }}>การจัดการ</th>
+</tr>
+
                   </thead>
                   <tbody>
                     {supportRequests.length === 0 ? (
@@ -956,6 +959,7 @@ export default function AdminDashboardPage() {
                       supportRequests.map((req) => (
                         <tr key={req.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                           <td style={{ padding: "12px 10px", fontWeight: 600, color: "#1e293b" }}>{req.contact_info}</td>
+                          <td style={{ padding: "12px 10px", color: "#1e293b" }}>{req.name || "—"}</td>
                           <td style={{ padding: "12px 10px", color: "#475569", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{req.details}</td>
                           <td style={{ padding: "12px 10px", textAlign: "center", color: "#64748b", fontSize: 12 }}>
                             {new Date(req.created_at).toLocaleDateString("th-TH", {
