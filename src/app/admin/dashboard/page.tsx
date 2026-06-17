@@ -519,7 +519,7 @@ export default function AdminDashboardPage() {
               <div style={{ borderRadius: 18, padding: "20px", background: "#fff", border: "2px solid #fbbf24", boxShadow: "0 2px 12px rgba(251,191,36,0.1)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                   <div style={{ width: 3, height: 18, borderRadius: 99, background: "#f59e0b" }} />
-                  <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>🔔 แพทย์รอการอนุมัติ</h2>
+                  <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>🔔 คำขอรอการอนุมัติ</h2>
                   <span style={{ marginLeft: "auto", fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#fef3c7", color: "#b45309", fontWeight: 600, border: "1px solid #fcd34d" }}>{pendingApplications.length} คน</span>
                 </div>
 
