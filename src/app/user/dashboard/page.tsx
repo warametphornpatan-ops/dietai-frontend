@@ -77,6 +77,36 @@ function readUserNutrition() {
     }
 }
 
+// ✅ Helper function สำหรับ refetch data จาก API
+async function refetchNutritionData(token: string) {
+    try {
+        console.log("🔄 Refetching nutrition data from /foods/summary...");
+        const res = await fetch(`${API_BASE}/foods/summary`, {
+            headers: { 
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+        });
+
+        if (!res.ok) {
+            console.error("❌ Refetch failed:", res.status);
+            return null;
+        }
+
+        const data = await res.json();
+        console.log("✅ Refetch success:", data);
+        return {
+            cal: data.total_calories || 0,
+            carb: data.total_carbs || 0,
+            protein: data.total_protein || 0,
+            fat: data.total_fat || 0,
+        };
+    } catch (error) {
+        console.error("❌ Refetch error:", error);
+        return null;
+    }
+}
+
 // --- Main Component ---
 export default function HomePage() {
     const router = useRouter();
@@ -103,6 +133,7 @@ export default function HomePage() {
     const abortRef = useRef<AbortController | null>(null);
     const mountedRef = useRef(true);
 
+    // ✅ Initial Load: ดึงข้อมูลผู้ใช้ และ nutrition summary
     useEffect(() => {
         mountedRef.current = true;
         const token = localStorage.getItem("token");
@@ -124,6 +155,7 @@ export default function HomePage() {
 
         (async () => {
             try {
+                // 1. ดึงข้อมูลผู้ใช้
                 const res = await fetch(`${API_BASE}/user/me`, {
                     headers: { Authorization: `Bearer ${token}` },
                     signal: controller.signal,
@@ -141,32 +173,26 @@ export default function HomePage() {
                     setUser(data);
                     setTargetCal(data.target_calories ?? 0);
 
-                    const nutritionRes = await fetch(`${API_BASE}/foods/today/${data.id}`, {
+                    // 2. ✅ ดึงข้อมูล nutrition จาก /foods/summary (แทน /foods/today)
+                    console.log("📊 Fetching nutrition summary...");
+                    const nutritionRes = await fetch(`${API_BASE}/foods/summary`, {
                         headers: { Authorization: `Bearer ${token}` },
                         signal: controller.signal,
                     });
 
                     if (nutritionRes.ok) {
                         const nutrition = await nutritionRes.json();
+                        console.log("✅ Nutrition summary loaded:", nutrition);
 
-                        if (Array.isArray(nutrition)) {
-                            const totalCal = nutrition.reduce((sum, item) => sum + Number(item.calories || 0), 0);
-                            const totalCarb = nutrition.reduce((sum, item) => sum + Number(item.carbs || 0), 0);
-                            const totalPro = nutrition.reduce((sum, item) => sum + Number(item.protein || 0), 0);
-                            const totalFat = nutrition.reduce((sum, item) => sum + Number(item.fat || 0), 0);
-
-                            setCalEaten(totalCal);
-                            setCarbEaten(totalCarb);
-                            setProEaten(totalPro);
-                            setFatEaten(totalFat);
-                        } else {
-                            setCalEaten(Number(nutrition.total_calories || nutrition.calories || 0));
-                            setCarbEaten(Number(nutrition.total_carbs || nutrition.carbs || 0));
-                            setProEaten(Number(nutrition.total_protein || nutrition.protein || 0));
-                            setFatEaten(Number(nutrition.total_fat || nutrition.fat || 0));
-                        }
+                        setCalEaten(Number(nutrition.total_calories || 0));
+                        setCarbEaten(Number(nutrition.total_carbs || 0));
+                        setProEaten(Number(nutrition.total_protein || 0));
+                        setFatEaten(Number(nutrition.total_fat || 0));
+                    } else {
+                        console.warn("⚠️ Failed to fetch nutrition summary:", nutritionRes.status);
                     }
 
+                    // 3. ดึงข้อมูล health records
                     try {
                         const hrRes = await fetch(`${API_BASE}/user/me/health-records`, {
                             headers: { Authorization: `Bearer ${token}` },
@@ -199,8 +225,10 @@ export default function HomePage() {
         };
     }, [router]);
 
+    // ✅ Event Listener: nutritionUpdated (เพิ่มอาหาร)
     useEffect(() => {
         if (!user) return;
+        
         function onNutritionUpdate(e: Event) {
             const ce = (e as CustomEvent).detail ?? {};
 
@@ -223,6 +251,47 @@ export default function HomePage() {
 
         window.addEventListener("nutritionUpdated", onNutritionUpdate as EventListener);
         return () => window.removeEventListener("nutritionUpdated", onNutritionUpdate as EventListener);
+    }, [user]);
+
+    // ✅ Event Listener: foodDataRefreshed (refetch จาก API หลังบันทึก)
+    useEffect(() => {
+        const handleFoodDataRefreshed = (e: Event) => {
+            const data = (e as CustomEvent).detail;
+            console.log("📊 Food data refreshed from API:", data);
+
+            if (data) {
+                setCalEaten(data.total_calories || 0);
+                setCarbEaten(data.total_carbs || 0);
+                setProEaten(data.total_protein || 0);
+                setFatEaten(data.total_fat || 0);
+            }
+        };
+
+        window.addEventListener("foodDataRefreshed", handleFoodDataRefreshed as EventListener);
+        return () => window.removeEventListener("foodDataRefreshed", handleFoodDataRefreshed as EventListener);
+    }, []);
+
+    // ✅ Window Focus Listener: refetch เมื่อกลับมาหน้า
+    useEffect(() => {
+        if (!user) return;
+
+        const handleWindowFocus = async () => {
+            console.log("👁️ Window focused - refetching nutrition data...");
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            const freshData = await refetchNutritionData(token);
+            if (freshData) {
+                console.log("✅ Updated nutrition data:", freshData);
+                setCalEaten(freshData.cal);
+                setCarbEaten(freshData.carb);
+                setProEaten(freshData.protein);
+                setFatEaten(freshData.fat);
+            }
+        };
+
+        window.addEventListener("focus", handleWindowFocus);
+        return () => window.removeEventListener("focus", handleWindowFocus);
     }, [user]);
 
     const logout = () => {
