@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import FoodRecommendations from "@/components/FoodRecommendations";
 
+
 // --- Interfaces ---
 interface User {
     id: number;
@@ -27,6 +28,7 @@ interface User {
     target_fat?: number;
 }
 
+
 interface HealthRecord {
     id: number;
     systolic: number | null;
@@ -36,7 +38,7 @@ interface HealthRecord {
     createdAt?: string;
 }
 
-interface MacroCardV2Props {
+interface MacroCardProps {
     label: string;
     icon: string;
     current: number;
@@ -44,7 +46,7 @@ interface MacroCardV2Props {
     color: string;
 }
 
-interface NavItemV2Props {
+interface NavItemProps {
     label: string;
     emoji: string;
     active?: boolean;
@@ -81,6 +83,7 @@ export default function HomePage() {
     const [user, setUser] = useState<User | null>(null);
     const [showUpload, setShowUpload] = useState(false);
     const [showHealthModal, setShowHealthModal] = useState(false);
+
     const [loading, setLoading] = useState(true);
 
     const [carbWarning, setCarbWarning] = useState({
@@ -99,12 +102,6 @@ export default function HomePage() {
 
     const abortRef = useRef<AbortController | null>(null);
     const mountedRef = useRef(true);
-
-    // ใช้ Ref เพื่อเก็บค่าเป้าหมายคาร์บ ป้องกันการเกิด Re-bind Event Listener บ่อยเกินไป
-    const targetCarbsRef = useRef<number>(0);
-    useEffect(() => {
-        targetCarbsRef.current = Number(user?.target_carbs) || 0;
-    }, [user?.target_carbs]);
 
     useEffect(() => {
         mountedRef.current = true;
@@ -202,30 +199,31 @@ export default function HomePage() {
         };
     }, [router]);
 
-    // แก้ไขจุดนี้: ผูก Event Listener เพียงครั้งเดียว ลดภาระการรันซ้ำ
     useEffect(() => {
+        if (!user) return;
         function onNutritionUpdate(e: Event) {
             const ce = (e as CustomEvent).detail ?? {};
 
             if (ce.cal !== undefined) setCalEaten(prev => prev + Number(ce.cal));
-            if (ce.protein !== undefined) setProEaten(prev => prev + Number(ce.protein));
-            if (ce.fat !== undefined) setFatEaten(prev => prev + Number(ce.fat));
 
             if (ce.carb !== undefined) {
                 setCarbEaten(prev => {
                     const newCarb = prev + Number(ce.carb);
-                    const targetCarb = targetCarbsRef.current;
+                    const targetCarb = Number(user?.target_carbs) || 0;
                     if (targetCarb > 0 && newCarb > targetCarb) {
-                        setCarbWarning({ show: true, current: newCarb, target: targetCarb });
+                        setTimeout(() => setCarbWarning({ show: true, current: newCarb, target: targetCarb }), 0);
                     }
                     return newCarb;
                 });
             }
+
+            if (ce.protein !== undefined) setProEaten(prev => prev + Number(ce.protein));
+            if (ce.fat !== undefined) setFatEaten(prev => prev + Number(ce.fat));
         }
 
         window.addEventListener("nutritionUpdated", onNutritionUpdate as EventListener);
         return () => window.removeEventListener("nutritionUpdated", onNutritionUpdate as EventListener);
-    }, []);
+    }, [user]);
 
     const logout = () => {
         localStorage.clear();
@@ -310,7 +308,9 @@ export default function HomePage() {
                                         </div>
                                         <div className="mt-5 pt-3 border-t border-gray-50 text-center sm:text-left">
                                             <p className="text-[11px] text-gray-400 font-normal italic flex items-center justify-center sm:justify-start gap-1">
-                                                <span>*หากต้องการปรับปรุงข้อมูลสุขภาพ สามารถแก้ไขได้ที่เมนูตั้งค่า</span>
+                                                <span>
+                                                    *หากต้องการปรับปรุงข้อมูลสุขภาพ สามารถแก้ไขได้ที่เมนูตั้งค่า
+                                                </span>
                                             </p>
                                         </div>
                                     </div>
@@ -328,7 +328,11 @@ export default function HomePage() {
                     </div>
 
                     <div className="md:col-span-5 lg:col-span-4 space-y-6">
-                        <button onClick={() => setShowHealthModal(true)} className="w-full text-left">
+                        {/* กล่องคำแนะนำแพทย์ — คลิกเพื่อเปิด Modal */}
+                        <button
+                            onClick={() => setShowHealthModal(true)}
+                            className="w-full text-left"
+                        >
                             <Card className="border-0 shadow-sm ring-1 ring-blue-100 bg-white hover:ring-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer group">
                                 <CardHeader className="pb-3 border-b border-blue-50 bg-blue-50/30">
                                     <CardTitle className="text-base text-blue-800 flex items-center justify-between">
@@ -341,6 +345,7 @@ export default function HomePage() {
                                 <CardContent className="pt-4">
                                     {healthRecords.length > 0 ? (
                                         <div className="space-y-2">
+                                            {/* แสดง preview แค่รายการแรก */}
                                             <div className="relative pl-4 border-l-2 border-blue-200">
                                                 <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-blue-200"></div>
                                                 <p className="text-xs text-gray-400 mb-1">
@@ -381,12 +386,28 @@ export default function HomePage() {
 
             {/* Modal คำแนะนำแพทย์ทั้งหมด */}
             {showHealthModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm" onClick={() => setShowHealthModal(false)}>
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm"
+                    onClick={() => setShowHealthModal(false)}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-blue-50 bg-blue-50/40 rounded-t-2xl">
-                            <h3 className="text-base font-bold text-blue-800 flex items-center gap-2">👨‍⚕️ คำแนะนำแพทย์ทั้งหมด</h3>
-                            <button onClick={() => setShowHealthModal(false)} className="text-gray-400 hover:text-gray-600 text-xl font-light leading-none transition-colors">✕</button>
+                            <h3 className="text-base font-bold text-blue-800 flex items-center gap-2">
+                                👨‍⚕️ คำแนะนำแพทย์ทั้งหมด
+                            </h3>
+                            <button
+                                onClick={() => setShowHealthModal(false)}
+                                className="text-gray-400 hover:text-gray-600 text-xl font-light leading-none transition-colors"
+                            >
+                                ✕
+                            </button>
                         </div>
+
+                        {/* Content */}
                         <div className="overflow-y-auto flex-1 px-6 py-4">
                             {healthRecords.length > 0 ? (
                                 <div className="space-y-4">
@@ -394,7 +415,9 @@ export default function HomePage() {
                                         <div key={rec.id} className="relative pl-4 border-l-2 border-blue-200">
                                             <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-blue-400"></div>
                                             <p className="text-xs text-gray-400 mb-1">
-                                                {rec.createdAt ? new Date(rec.createdAt).toLocaleDateString("th-TH") : "ไม่ระบุวันที่"}
+                                                {rec.createdAt
+                                                    ? new Date(rec.createdAt).toLocaleDateString("th-TH")
+                                                    : "ไม่ระบุวันที่"}
                                             </p>
                                             {(rec.systolic || rec.diastolic || rec.pulse) && (
                                                 <div className="flex gap-2 flex-wrap mb-2">
@@ -420,8 +443,15 @@ export default function HomePage() {
                                 <div className="text-center py-12 text-gray-400 text-sm">ยังไม่มีคำแนะนำใหม่</div>
                             )}
                         </div>
+
+                        {/* Footer */}
                         <div className="px-6 py-4 border-t border-gray-100">
-                            <Button onClick={() => setShowHealthModal(false)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">ปิด</Button>
+                            <Button
+                                onClick={() => setShowHealthModal(false)}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
+                            >
+                                ปิด
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -434,7 +464,7 @@ export default function HomePage() {
                         <div className="text-5xl mb-4">⚠️</div>
                         <h3 className="text-lg font-bold text-gray-800 mb-2">ระวังคาร์บเกิน!</h3>
                         <p className="text-gray-500 mb-6 text-sm">วันนี้ทานไป <span className="font-bold text-rose-500">{Math.round(carbWarning.current)}g</span> / {carbWarning.target}g</p>
-                        <Button onClick={() => setCarbWarning(prev => ({ ...prev, show: false }))} className="w-full bg-emerald-600 text-white rounded-xl">รับทราบ</Button>
+                        <Button onClick={() => setCarbWarning({ ...carbWarning, show: false })} className="w-full bg-emerald-600 text-white rounded-xl">รับทราบ</Button>
                     </div>
                 </div>
             )}
@@ -442,8 +472,7 @@ export default function HomePage() {
     );
 }
 
-// --- Sub Components ---
-function MacroCardV2({ label, icon, current, max, color }: MacroCardV2Props) {
+function MacroCardV2({ label, icon, current, max, color }: MacroCardProps) {
     const percent = max > 0 ? Math.min((current / max) * 100, 100) : 0;
     return (
         <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between h-full">
@@ -456,7 +485,7 @@ function MacroCardV2({ label, icon, current, max, color }: MacroCardV2Props) {
     );
 }
 
-function NavItemV2({ label, emoji, active, onClick }: NavItemV2Props) {
+function NavItemV2({ label, emoji, active, onClick }: NavItemProps) {
     return (
         <button onClick={onClick} className="flex flex-col items-center justify-center gap-1 h-full w-full">
             <div className={`text-xl ${active ? "" : "grayscale opacity-60"}`}>{emoji}</div>
