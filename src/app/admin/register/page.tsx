@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { validateThaiID } from "@/lib/validateThaiID";
+import { validateThaiID } from "@/lib/validateThaiID";  // ✅ เพิ่ม
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -135,7 +135,6 @@ export default function AdminRegisterPage() {
     setUsernameStatus("idle");
     setUsernameMessage("");
     try {
-      // ✅ เปลี่ยน endpoint เป็น /doctors/check-username
       const res = await fetch(`${API_URL}/admins/doctors/check-username?username=${encodeURIComponent(user)}`);
       const data = await safeParseJson(res);
 
@@ -168,12 +167,16 @@ export default function AdminRegisterPage() {
     const errs: Partial<Record<keyof AdminRegisterForm, string>> = {};
     if (orgStatus !== "success") errs.org_code = "กรุณาตรวจสอบรหัสหน่วยงานก่อน";
     
-    // ✅ เพิ่มการตรวจสอบเลขบัตรประชาชนแบบสมบูรณ์
     const digits = form.citizen_id.replace(/\D/g, "");
+    
+    // ✅ เพิ่ม: ตรวจสอบเลขบัตรประชาชน
     if (digits.length !== 13) {
       errs.citizen_id = "ต้องเป็นตัวเลข 13 หลัก";
-    } else if (!validateThaiID(digits)) {
-      errs.citizen_id = "เลขบัตรประชาชนไม่ถูกต้อง (checksum ไม่ตรงกัน)";
+    } else {
+      const result = validateThaiID(form.citizen_id);
+      if (!result.isValid) {
+        errs.citizen_id = result.message;
+      }
     }
     
     if (!form.first_name.trim()) errs.first_name = "กรุณากรอกชื่อจริง";
@@ -204,7 +207,6 @@ export default function AdminRegisterPage() {
       const body = await safeParseJson(res);
       if (!res.ok) { alert(extractErrorMessage(body)); return; }
 
-      // ── Step 2: ส่ง OTP ผ่าน Supabase ──
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: form.email.trim(),
         options: {
@@ -217,7 +219,6 @@ export default function AdminRegisterPage() {
         return;
       }
 
-      // ── Step 3: เปิด Modal ให้กรอก OTP ──
       setShowOtpModal(true);
 
     } catch { alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"); }
@@ -284,7 +285,6 @@ export default function AdminRegisterPage() {
         boxShadow: "0 20px 60px rgba(13,79,46,0.10),0 4px 16px rgba(13,79,46,0.06)",
         position: "relative", zIndex: 1,
       }}>
-        {/* header */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
           <div style={{ width: 4, height: 22, borderRadius: 99, background: "linear-gradient(180deg,#16a360,#0d8a4f)" }} />
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0d4f2e" }}>ลงทะเบียนบุคลากรทางการแพทย์</h2>
@@ -330,26 +330,11 @@ export default function AdminRegisterPage() {
             )}
           </Field>
 
-          {/* citizen id - ✅ อัปเดตแล้ว */}
+          {/* citizen id */}
           <Field label="เลขบัตรประชาชน" hint="(13 หลัก)" error={fieldErrors.citizen_id}>
-            <StyledInput 
-              type="text" 
-              inputMode="numeric" 
-              maxLength={13} 
-              placeholder="xxxxxxxxxxxxxxxxx"
-              value={form.citizen_id} 
-              hasError={!!fieldErrors.citizen_id}
-              onChange={e => { 
-                const val = e.target.value.replace(/\D/g, "");
-                setForm(p => ({ ...p, citizen_id: val })); 
-                setFieldErrors(p => ({ ...p, citizen_id: "" }));
-                
-                // ✅ ตรวจสอบ checksum real-time
-                if (val.length === 13 && !validateThaiID(val)) {
-                  setFieldErrors(p => ({ ...p, citizen_id: "เลขบัตรไม่ถูกต้อง (checksum ไม่ตรงกัน)" }));
-                }
-              }} 
-            />
+            <StyledInput type="text" inputMode="numeric" maxLength={13} placeholder="xxxxxxxxxxxxxxxxx"
+              value={form.citizen_id} hasError={!!fieldErrors.citizen_id}
+              onChange={e => { setForm(p => ({ ...p, citizen_id: e.target.value.replace(/\D/g, "") })); setFieldErrors(p => ({ ...p, citizen_id: "" })); }} />
           </Field>
 
           {/* name row */}
