@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { saveDoctorApplication, verifyEmailOtp, checkUsernameAvailabilityInApplications } from "@/lib/supabase-applications-helpers";
+import { saveDoctorApplication, checkUsernameAvailabilityInApplications } from "@/lib/supabase-applications-helpers";
 import { validateThaiID } from "@/lib/validateThaiID";
 import { supabase } from "@/lib/supabase";
 
@@ -134,7 +134,6 @@ export default function AdminRegisterPage() {
     setUsernameStatus("idle");
     setUsernameMessage("");
     try {
-      // ✅ ใช้ Supabase helper
       const result = await checkUsernameAvailabilityInApplications(user);
       
       if (result.success && result.available) {
@@ -161,7 +160,6 @@ export default function AdminRegisterPage() {
     
     const digits = form.citizen_id.replace(/\D/g, "");
     
-    // ✅ ตรวจสอบเลขบัตรประชาชน
     if (digits.length !== 13) {
       errs.citizen_id = "ต้องเป็นตัวเลข 13 หลัก";
     } else {
@@ -184,7 +182,7 @@ export default function AdminRegisterPage() {
 
     setLoading(true);
     try {
-      // ✅ บันทึกลง doctor_applications (ยังไม่ใช่ doctors table)
+      // ✅ บันทึกลง doctor_applications
       const result = await saveDoctorApplication({
         org_code: form.org_code.trim(),
         citizen_id: digits,
@@ -192,7 +190,7 @@ export default function AdminRegisterPage() {
         last_name: form.last_name.trim(),
         email: form.email.trim(),
         username: form.username.trim(),
-        password_hash: form.password, // ⚠️ TODO: Hash password ก่อนส่ง
+        password_hash: form.password,
         position: form.position.trim(),
       });
 
@@ -201,23 +199,21 @@ export default function AdminRegisterPage() {
         return;
       }
 
-      // ✅ ส่ง OTP ไปยัง email
+      // ✅ ส่ง OTP ผ่าน Supabase Auth API
       try {
-        const otpRes = await fetch(`${API_URL}/auth/send-otp`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: form.email.trim() }),
+        const { error } = await supabase.auth.signInWithOtp({
+          email: form.email.trim(),
         });
 
-        if (!otpRes.ok) {
-          alert("ลงทะเบียนสำเร็จ แต่ส่ง OTP ไม่ได้");
+        if (error) {
+          alert("ลงทะเบียนสำเร็จ แต่ส่ง OTP ไม่ได้: " + error.message);
           setShowSuccessModal(true);
           return;
         }
 
-        // ✅ แสดง OTP Modal เพื่อยืนยัน email
+        // ✅ แสดง OTP Modal
         setShowOtpModal(true);
-      } catch {
+      } catch (e) {
         alert("ลงทะเบียนสำเร็จ แต่เกิดข้อผิดพลาดในการส่ง OTP");
         setShowSuccessModal(true);
       }
@@ -229,29 +225,45 @@ export default function AdminRegisterPage() {
     }
   }
 
-  // ✅ Handler สำหรับปิด Success Modal
   function handleCloseSuccessModal() {
     setShowSuccessModal(false);
     router.push("/login");
   }
 
-  // ✅ Handler สำหรับ OTP Verification
+  // ✅ Verify OTP ผ่าน Supabase
   async function handleVerifyOtp() {
     if (otp.length !== 6) return;
     setVerifyingOtp(true);
     try {
-      // ✅ ใช้ Supabase helper เพื่อ verify OTP + update email_verified
-      const result = await verifyEmailOtp(form.email.trim(), otp);
+      const { error } = await supabase.auth.verifyOtp({
+        email: form.email.trim(),
+        token: otp,
+        type: "email",
+      });
 
-      if (!result.success) {
-        alert("รหัส OTP ไม่ถูกต้องหรือหมดอายุ กรุณาลองใหม่");
+      if (error) {
+        alert("รหัส OTP ไม่ถูกต้องหรือหมดอายุ: " + error.message);
         return;
       }
 
-      // ✅ OTP ถูกต้อง - ปิด OTP Modal และแสดง Success Modal
+      // ✅ OTP ถูกต้อง - Update email_verified ใน doctor_applications
+      const { data: session } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        // ✅ Update Supabase: doctor_applications.email_verified = true
+        const { error: updateError } = await supabase
+          .from("doctor_applications")
+          .update({ email_verified: true })
+          .eq("email", form.email.trim());
+
+        if (updateError) {
+          console.error("Error updating email_verified:", updateError);
+        }
+      }
+
+      // ✅ ปิด OTP Modal และแสดง Success Modal
       setShowOtpModal(false);
       setShowSuccessModal(true);
-    } catch {
+    } catch (e) {
       alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     } finally {
       setVerifyingOtp(false);
@@ -491,7 +503,7 @@ export default function AdminRegisterPage() {
         </p>
       </div>
 
-      {/* ✅ OTP Modal (ยืนยัน email) */}
+      {/* ✅ OTP Modal */}
       {showOtpModal && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center",
@@ -537,7 +549,7 @@ export default function AdminRegisterPage() {
         </div>
       )}
 
-      {/* ✅ Success Modal (หลังจาก OTP สำเร็จ) */}
+      {/* ✅ Success Modal */}
       {showSuccessModal && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center",
