@@ -167,13 +167,19 @@ export default function AdminRegisterPage() {
 
     const errs: Partial<Record<keyof AdminRegisterForm, string>> = {};
     if (orgStatus !== "success") errs.org_code = "กรุณาตรวจสอบรหัสหน่วยงานก่อน";
+    
+    // ✅ เพิ่มการตรวจสอบเลขบัตรประชาชนแบบสมบูรณ์
     const digits = form.citizen_id.replace(/\D/g, "");
-    if (digits.length !== 13) errs.citizen_id = "ต้องเป็นตัวเลข 13 หลัก";
+    if (digits.length !== 13) {
+      errs.citizen_id = "ต้องเป็นตัวเลข 13 หลัก";
+    } else if (!validateThaiID(digits)) {
+      errs.citizen_id = "เลขบัตรประชาชนไม่ถูกต้อง (checksum ไม่ตรงกัน)";
+    }
+    
     if (!form.first_name.trim()) errs.first_name = "กรุณากรอกชื่อจริง";
     if (!form.last_name.trim()) errs.last_name = "กรุณากรอกนามสกุล";
     if (!form.email.trim()) errs.email = "กรุณากรอกอีเมล";
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = "รูปแบบอีเมลไม่ถูกต้อง";
-    // ✅ เพิ่ม validate position
     if (!form.position.trim()) errs.position = "กรุณากรอกตำแหน่ง";
     if (usernameStatus !== "success") errs.username = "กรุณาตรวจสอบชื่อผู้ใช้ก่อน";
     if (form.password.length < 6) errs.password = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
@@ -183,7 +189,6 @@ export default function AdminRegisterPage() {
 
     setLoading(true);
     try {
-      // ✅ ใช้ DoctorRegisterPayload + endpoint /doctors
       const payload: DoctorRegisterPayload = {
         org_code: form.org_code.trim(), citizen_id: digits,
         first_name: form.first_name.trim(), last_name: form.last_name.trim(),
@@ -279,7 +284,7 @@ export default function AdminRegisterPage() {
         boxShadow: "0 20px 60px rgba(13,79,46,0.10),0 4px 16px rgba(13,79,46,0.06)",
         position: "relative", zIndex: 1,
       }}>
-        {/* ✅ เปลี่ยนหัวข้อและ badge */}
+        {/* header */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
           <div style={{ width: 4, height: 22, borderRadius: 99, background: "linear-gradient(180deg,#16a360,#0d8a4f)" }} />
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0d4f2e" }}>ลงทะเบียนบุคลากรทางการแพทย์</h2>
@@ -325,11 +330,26 @@ export default function AdminRegisterPage() {
             )}
           </Field>
 
-          {/* citizen id */}
+          {/* citizen id - ✅ อัปเดตแล้ว */}
           <Field label="เลขบัตรประชาชน" hint="(13 หลัก)" error={fieldErrors.citizen_id}>
-            <StyledInput type="text" inputMode="numeric" maxLength={13} placeholder="xxxxxxxxxxxxxxxxx"
-              value={form.citizen_id} hasError={!!fieldErrors.citizen_id}
-              onChange={e => { setForm(p => ({ ...p, citizen_id: e.target.value.replace(/\D/g, "") })); setFieldErrors(p => ({ ...p, citizen_id: "" })); }} />
+            <StyledInput 
+              type="text" 
+              inputMode="numeric" 
+              maxLength={13} 
+              placeholder="xxxxxxxxxxxxxxxxx"
+              value={form.citizen_id} 
+              hasError={!!fieldErrors.citizen_id}
+              onChange={e => { 
+                const val = e.target.value.replace(/\D/g, "");
+                setForm(p => ({ ...p, citizen_id: val })); 
+                setFieldErrors(p => ({ ...p, citizen_id: "" }));
+                
+                // ✅ ตรวจสอบ checksum real-time
+                if (val.length === 13 && !validateThaiID(val)) {
+                  setFieldErrors(p => ({ ...p, citizen_id: "เลขบัตรไม่ถูกต้อง (checksum ไม่ตรงกัน)" }));
+                }
+              }} 
+            />
           </Field>
 
           {/* name row */}
@@ -350,7 +370,7 @@ export default function AdminRegisterPage() {
               value={form.email} hasError={!!fieldErrors.email} onChange={set("email")} />
           </Field>
 
-          {/* ✅ ตำแหน่ง */}
+          {/* position */}
           <Field label="ตำแหน่ง" error={fieldErrors.position}>
             <StyledInput
               type="text"
