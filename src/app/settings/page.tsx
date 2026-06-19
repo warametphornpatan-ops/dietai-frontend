@@ -101,7 +101,7 @@ export default function SettingsPage() {
 
         async function fetchProfile() {
             try {
-                const res = await fetch(`${API_BASE}/user/me`, {
+                const res = await fetch(`${API_BASE}/api/user/me`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 
@@ -137,7 +137,7 @@ export default function SettingsPage() {
 
             setLoadingHistory(true);
             try {
-                const res = await fetch(`${API_BASE}/user/me/history`, {
+                const res = await fetch(`${API_BASE}/api/user/me/history`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -162,7 +162,7 @@ export default function SettingsPage() {
         const token = localStorage.getItem("token");
 
         try {
-            const res = await fetch(`${API_BASE}/user/me/profile`, {
+            const res = await fetch(`${API_BASE}/api/user/me/profile`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",

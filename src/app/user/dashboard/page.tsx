@@ -81,7 +81,7 @@ function readUserNutrition() {
 async function refetchNutritionData(token: string) {
     try {
         console.log("🔄 Refetching nutrition data from /foods/summary...");
-        const res = await fetch(`${API_BASE}/foods/summary`, {
+        const res = await fetch(`${API_BASE}/api/foods/summary`, {
             headers: { 
                 Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json"
@@ -156,7 +156,7 @@ export default function HomePage() {
         (async () => {
             try {
                 // 1. ดึงข้อมูลผู้ใช้
-                const res = await fetch(`${API_BASE}/user/me`, {
+                const res = await fetch(`${API_BASE}/api/user/me`, {
                     headers: { Authorization: `Bearer ${token}` },
                     signal: controller.signal,
                 });
@@ -194,7 +194,7 @@ export default function HomePage() {
 
                     // 3. ดึงข้อมูล health records
                     try {
-                        const hrRes = await fetch(`${API_BASE}/user/me/health-records`, {
+                        const hrRes = await fetch(`${API_BASE}/api/user/me/health-records`, {
                             headers: { Authorization: `Bearer ${token}` },
                             signal: controller.signal,
                         });

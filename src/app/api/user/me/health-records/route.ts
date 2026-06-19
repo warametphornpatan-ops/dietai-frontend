@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
         const token = req.headers.get("authorization");
 
         const response = await fetch(
-            `${BACKEND_URL}/user/me/health-records`,
+            `${BACKEND_URL}/api/user/me/health-records`,
             {
                 method: "GET",
                 headers: {
