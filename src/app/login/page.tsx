@@ -143,6 +143,7 @@ export default function LoginPage() {
 
     setCheckingOrg(true);
     try {
+      // ✅ FIXED: API_URL already has /api, so just use /organizations/{code}
       const res = await fetch(`${API_URL}/organizations/${code}`);
       if (!res.ok) {
         alert("ไม่พบรหัสหน่วยงานนี้ในระบบ โปรดตรวจสอบอีกครั้ง");
@@ -171,6 +172,7 @@ export default function LoginPage() {
 
     setSendingSupport(true);
     try {
+      // ✅ FIXED: API_URL already has /api, so just use /support-requests
       const res = await fetch(`${API_URL}/support-requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -232,8 +234,8 @@ export default function LoginPage() {
       let detectedRole = "user";
 
       if (loginType === "user") {
-        // ✅ FIXED: Changed from /user/login to /api/user/login
-        const res = await fetch(`${API_URL}/api/user/login`, {
+        // ✅ FIXED: API_URL already has /api, so just use /user/login
+        const res = await fetch(`${API_URL}/user/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
@@ -250,8 +252,8 @@ export default function LoginPage() {
         detectedRole = "user";
       } else {
         // Try doctor first
-        // ✅ FIXED: Changed from /api/doctors/login to /api/doctor/login
-        let res = await fetch(`${API_URL}/api/doctor/login`, {
+        // ✅ FIXED: API_URL already has /api, so just use /doctor/login
+        let res = await fetch(`${API_URL}/doctor/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password, org_code: orgCode }),
@@ -263,8 +265,8 @@ export default function LoginPage() {
           detectedRole = "doctor";
         } else {
           // Try admin
-          // ✅ FIXED: Changed from /api/admins/login to /api/admin/login
-          res = await fetch(`${API_URL}/api/admin/login`, {
+          // ✅ FIXED: API_URL already has /api, so just use /admin/login
+          res = await fetch(`${API_URL}/admin/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password, org_code: orgCode }),
