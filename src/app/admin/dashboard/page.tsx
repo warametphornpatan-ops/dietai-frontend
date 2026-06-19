@@ -17,6 +17,13 @@ type StaffRow = {
   role: "admin" | "doctor";
 };
 
+type UserRow = {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+};
+
 type SupportRequestRow = {
   id: number;
   contact_info: string;
@@ -72,7 +79,6 @@ type OrgResponse = {
   name: string;
 };
 
-// ✅ Type สำหรับ Feature ค้นหาผู้ใช้
 type UserAccountItem = {
   id: string;
   name: string;
@@ -93,11 +99,16 @@ type AdminForm = {
   email: string;
 };
 
-type EditForm = {
+type EditStaffForm = {
   first_name: string;
   last_name: string;
   email: string;
   position: string;
+};
+
+type EditUserForm = {
+  name: string;
+  email: string;
 };
 
 type AdminProfileForm = {
@@ -158,10 +169,12 @@ function Field({ label, hint, required: req, children }: {
 
 export default function AdminDashboardPage() {
   const [staffList, setStaffList] = useState<StaffRow[]>([]);
+  const [allUsers, setAllUsers] = useState<UserRow[]>([]);
   const [pendingApplications, setPendingApplications] = useState<DoctorApplication[]>([]);
   const [supportRequests, setSupportRequests] = useState<SupportRequestRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
 
   const [adminOrgCode, setAdminOrgCode] = useState<string>("");
   const [adminOrgName, setAdminOrgName] = useState<string>("");
@@ -181,14 +194,21 @@ export default function AdminDashboardPage() {
     email: "",
   });
 
-  const [editingRow, setEditingRow] = useState<StaffRow | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({
+  const [editingStaff, setEditingStaff] = useState<StaffRow | null>(null);
+  const [editStaffForm, setEditStaffForm] = useState<EditStaffForm>({
     first_name: "",
     last_name: "",
     email: "",
     position: "",
   });
-  const [editLoading, setEditLoading] = useState(false);
+  const [editStaffLoading, setEditStaffLoading] = useState(false);
+
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [editUserForm, setEditUserForm] = useState<EditUserForm>({
+    name: "",
+    email: "",
+  });
+  const [editUserLoading, setEditUserLoading] = useState(false);
 
   const [showAdminProfileModal, setShowAdminProfileModal] = useState(false);
   const [adminProfileForm, setAdminProfileForm] = useState<AdminProfileForm>({
@@ -201,12 +221,6 @@ export default function AdminDashboardPage() {
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [resolvingRequestId, setResolvingRequestId] = useState<number | null>(null);
-
-  // ✅ State สำหรับ Feature ค้นหาผู้ใช้
-  const [showUsersModal, setShowUsersModal] = useState(false);
-  const [allUsers, setAllUsers] = useState<UserAccountItem[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
-  const [userSearch, setUserSearch] = useState("");
 
   function getAuthHeaders(extraHeaders = {}) {
     const token = localStorage.getItem("token");
@@ -231,6 +245,7 @@ export default function AdminDashboardPage() {
         if (adminData.org_code) {
           fetchOrgName(adminData.org_code);
           fetchAllStaff(adminData.org_code);
+          fetchAllUsersData(adminData.org_code);
           fetchPendingApplications(adminData.org_code);
           fetchSupportRequests(adminData.org_code);
         }
@@ -292,6 +307,18 @@ export default function AdminDashboardPage() {
     }
   }
 
+  async function fetchAllUsersData(orgCode: string) {
+    try {
+      const res = await fetch(`${API_URL}/admins/list-all-users`, { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data: UsersListResponse = await res.json();
+        setAllUsers(data.users || []);
+      }
+    } catch (e) {
+      console.error("โหลดข้อมูล users ไม่สำเร็จ", e);
+    }
+  }
+
   async function fetchPendingApplications(orgCode: string) {
     try {
       const result = await getPendingApplications(orgCode);
@@ -312,27 +339,6 @@ export default function AdminDashboardPage() {
       }
     } catch (e) {
       console.error("โหลดข้อมูลแจ้งปัญหาไม่สำเร็จ", e);
-    }
-  }
-
-  // ✅ Feature ค้นหาผู้ใช้: โหลด user ทั้งหมด
-  async function handleOpenUsersModal() {
-    setShowUsersModal(true);
-    setUserSearch("");
-    setUsersLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/admins/list-all-users`,  { headers: getAuthHeaders() });
-      if (res.ok) {
-        const data: UsersListResponse = await res.json();
-        setAllUsers(data.users || []);
-      } else {
-        alert("ไม่สามารถโหลดข้อมูลผู้ใช้ได้");
-      }
-    } catch (e) {
-      console.error("โหลดรายชื่อผู้ใช้ไม่สำเร็จ", e);
-      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
-    } finally {
-      setUsersLoading(false);
     }
   }
 
@@ -479,9 +485,9 @@ export default function AdminDashboardPage() {
     }
   }
 
-  function handleOpenEdit(row: StaffRow) {
-    setEditingRow(row);
-    setEditForm({
+  function handleOpenEditStaff(row: StaffRow) {
+    setEditingStaff(row);
+    setEditStaffForm({
       first_name: row.first_name,
       last_name: row.last_name,
       email: row.email || "",
@@ -489,31 +495,31 @@ export default function AdminDashboardPage() {
     });
   }
 
-  function handleCloseEdit() {
-    setEditingRow(null);
-    setEditForm({ first_name: "", last_name: "", email: "", position: "" });
+  function handleCloseEditStaff() {
+    setEditingStaff(null);
+    setEditStaffForm({ first_name: "", last_name: "", email: "", position: "" });
   }
 
-  async function handleSaveEdit(e: React.FormEvent) {
+  async function handleSaveEditStaff(e: React.FormEvent) {
     e.preventDefault();
-    if (!editingRow) return;
-    if (!editForm.first_name.trim() || !editForm.last_name.trim() || !editForm.email.trim()) {
+    if (!editingStaff) return;
+    if (!editStaffForm.first_name.trim() || !editStaffForm.last_name.trim() || !editStaffForm.email.trim()) {
       alert("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
 
-    setEditLoading(true);
+    setEditStaffLoading(true);
     try {
-      const res = await fetch(`${API_URL}/admins/doctors/${editingRow.id}`, {
+      const res = await fetch(`${API_URL}/admins/doctors/${editingStaff.id}`, {
         method: "PUT",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           org_code: adminOrgCode,
-          first_name: editForm.first_name.trim(),
-          last_name: editForm.last_name.trim(),
-          email: editForm.email.trim(),
-          username: editingRow.username,
-          position: editForm.position.trim(),
+          first_name: editStaffForm.first_name.trim(),
+          last_name: editStaffForm.last_name.trim(),
+          email: editStaffForm.email.trim(),
+          username: editingStaff.username,
+          position: editStaffForm.position.trim(),
         }),
       });
 
@@ -524,13 +530,62 @@ export default function AdminDashboardPage() {
       }
 
       alert("✅ แก้ไขข้อมูลสำเร็จ");
-      handleCloseEdit();
+      handleCloseEditStaff();
       fetchAllStaff(adminOrgCode);
     } catch (e) {
       alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
       console.error(e);
     } finally {
-      setEditLoading(false);
+      setEditStaffLoading(false);
+    }
+  }
+
+  function handleOpenEditUser(user: UserRow) {
+    setEditingUser(user);
+    setEditUserForm({
+      name: user.name,
+      email: user.email,
+    });
+  }
+
+  function handleCloseEditUser() {
+    setEditingUser(null);
+    setEditUserForm({ name: "", email: "" });
+  }
+
+  async function handleSaveEditUser(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingUser) return;
+    if (!editUserForm.name.trim() || !editUserForm.email.trim()) {
+      alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+      return;
+    }
+
+    setEditUserLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/users/${editingUser.id}`, {
+        method: "PUT",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          name: editUserForm.name.trim(),
+          email: editUserForm.email.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const d: { detail?: string } = await res.json();
+        alert(d.detail || "แก้ไขข้อมูลไม่สำเร็จ");
+        return;
+      }
+
+      alert("✅ แก้ไขข้อมูลสำเร็จ");
+      handleCloseEditUser();
+      fetchAllUsersData(adminOrgCode);
+    } catch (e) {
+      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+      console.error(e);
+    } finally {
+      setEditUserLoading(false);
     }
   }
 
@@ -578,7 +633,7 @@ export default function AdminDashboardPage() {
     }
   }
 
-  async function handleDelete(row: StaffRow) {
+  async function handleDeleteStaff(row: StaffRow) {
     if (row.role === "admin" && row.id === adminId) {
       alert("ไม่สามารถลบบัญชีของตัวเองได้");
       return;
@@ -603,16 +658,34 @@ export default function AdminDashboardPage() {
     }
   }
 
-  const filtered = staffList.filter(s =>
+  async function handleDeleteUser(user: UserRow) {
+    if (!confirm(`ยืนยันลบ "${user.name}" ออกจากระบบ?`)) return;
+
+    try {
+      const res = await fetch(`${API_URL}/users/${user.id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const d: { detail?: string } = await res.json().catch(() => ({}));
+        alert(d.detail || "ลบไม่สำเร็จ");
+        return;
+      }
+      setAllUsers(u => u.filter(x => x.id !== user.id));
+    } catch {
+      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+    }
+  }
+
+  const filteredStaff = staffList.filter(s =>
     s.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.last_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // ✅ กรองผู้ใช้ตามคำค้นหา (ฝั่ง frontend)
   const filteredUsers = allUsers.filter(u =>
-    u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-    u.username.toLowerCase().includes(userSearch.toLowerCase()) ||
-    u.email.toLowerCase().includes(userSearch.toLowerCase())
+    u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+    u.username.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+    u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
   );
 
   const avatarColors = ["#3b82f6", "#6366f1", "#0ea5e9", "#8b5cf6", "#2563eb"];
@@ -825,7 +898,7 @@ export default function AdminDashboardPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 3, height: 18, borderRadius: 99, background: "linear-gradient(180deg,#3b82f6,#2563eb)" }} />
                   <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>รายชื่อบุคลากรในหน่วยงานของคุณ</h2>
-                  <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eff6ff", color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe" }}>{filtered.length} คน</span>
+                  <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eff6ff", color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe" }}>{filteredStaff.length} คน</span>
                 </div>
                 <div style={{ position: "relative" }}>
                   <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
@@ -845,14 +918,14 @@ export default function AdminDashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.length === 0 ? (
+                    {filteredStaff.length === 0 ? (
                       <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                           <span style={{ fontSize: 32, opacity: 0.3 }}>👥</span>
                           <span>{searchQuery ? "ไม่พบบุคลากรที่ค้นหา" : "ยังไม่มีรายชื่อบุคลากรในหน่วยงานนี้"}</span>
                         </div>
                       </td></tr>
-                    ) : filtered.map((row, i) => {
+                    ) : filteredStaff.map((row, i) => {
                       const color = avatarColors[i % avatarColors.length];
                       const isAdmin = row.role === "admin";
                       return (
@@ -886,14 +959,88 @@ export default function AdminDashboardPage() {
                           <td style={{ padding: "10px 12px", textAlign: "center" }}>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                               {!isAdmin && (
-                                <button onClick={() => handleOpenEdit(row)}
+                                <button onClick={() => handleOpenEditStaff(row)}
                                   style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #bfdbfe", background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
                                   onMouseEnter={e => e.currentTarget.style.background = "#dbeafe"}
                                   onMouseLeave={e => e.currentTarget.style.background = "#eff6ff"}>
                                   แก้ไข
                                 </button>
                               )}
-                              <button onClick={() => handleDelete(row)}
+                              <button onClick={() => handleDeleteStaff(row)}
+                                style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+                                onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
+                                onMouseLeave={e => e.currentTarget.style.background = "#fef2f2"}>
+                                ลบ
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* ✅ USERS LIST (แยกบล็อก) */}
+            <div style={{ borderRadius: 18, padding: "20px", background: "#fff", border: "1.5px solid #6366f1", boxShadow: "0 4px 16px rgba(99,102,241,0.08)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 3, height: 18, borderRadius: 99, background: "#6366f1" }} />
+                  <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>👤 ข้อมูลผู้ใช้ทั่วไป</h2>
+                  <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eef2ff", color: "#6366f1", fontWeight: 600, border: "1px solid #c7d2fe" }}>{filteredUsers.length} คน</span>
+                </div>
+                <div style={{ position: "relative" }}>
+                  <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                  <input placeholder="ค้นหาชื่อ, username หรือ email..." value={userSearchQuery} onChange={e => setUserSearchQuery(e.target.value)}
+                    style={{ ...inputBase, width: 250, paddingLeft: 32, fontSize: 13 }}
+                    onFocus={e => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.background = "#eef2ff"; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#f8fafc"; }} />
+                </div>
+              </div>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "#eef2ff", borderBottom: "1.5px solid #c7d2fe" }}>
+                      {["#", "ชื่อ-นามสกุล", "Username", "อีเมล", "จัดการ"].map((h, i) => (
+                        <th key={h} style={{ padding: "10px 12px", textAlign: i === 0 || i === 4 ? "center" : "left", fontWeight: 600, color: "#4c1d95", whiteSpace: "nowrap", fontSize: 12 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.length === 0 ? (
+                      <tr><td colSpan={5} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 32, opacity: 0.3 }}>👤</span>
+                          <span>{userSearchQuery ? "ไม่พบผู้ใช้ที่ค้นหา" : "ยังไม่มีผู้ใช้ทั่วไปในระบบ"}</span>
+                        </div>
+                      </td></tr>
+                    ) : filteredUsers.map((user, i) => {
+                      const color = avatarColors[i % avatarColors.length];
+                      return (
+                        <tr key={user.id} style={{ borderBottom: "1px solid #f1f5f9", transition: "background 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                          <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600, color: "#cbd5e1", fontSize: 12 }}>{i + 1}</td>
+                          <td style={{ padding: "10px 12px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                              <div style={{ width: 30, height: 30, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+                                {user.name[0]}
+                              </div>
+                              <span style={{ color: "#1e293b", fontWeight: 500 }}>{user.name}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: "10px 12px", color: "#475569" }}>{user.username || "—"}</td>
+                          <td style={{ padding: "10px 12px", color: "#94a3b8" }}>{user.email}</td>
+                          <td style={{ padding: "10px 12px", textAlign: "center" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                              <button onClick={() => handleOpenEditUser(user)}
+                                style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #c7d2fe", background: "#eef2ff", color: "#6366f1", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+                                onMouseEnter={e => e.currentTarget.style.background = "#ddd6fe"}
+                                onMouseLeave={e => e.currentTarget.style.background = "#eef2ff"}>
+                                แก้ไข
+                              </button>
+                              <button onClick={() => handleDeleteUser(user)}
                                 style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
                                 onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
                                 onMouseLeave={e => e.currentTarget.style.background = "#fef2f2"}>
@@ -914,44 +1061,26 @@ export default function AdminDashboardPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                 <div style={{ width: 3, height: 18, borderRadius: 99, background: "#3b82f6" }} />
                 <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>📥 รายการแจ้งปัญหา / ปัญหาการเข้าสู่ระบบ</h2>
-
-                {/* ✅ ปุ่มค้นหาผู้ใช้ + จำนวนเรื่อง (ครอบด้วย div เดียวกัน ดันไปขวา) */}
-                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-                  <button
-                    onClick={handleOpenUsersModal}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 6,
-                      padding: "6px 14px", borderRadius: 8, border: "1.5px solid #bfdbfe",
-                      background: "#eff6ff", color: "#3b82f6", fontSize: 12, fontWeight: 600,
-                      cursor: "pointer", transition: "all 0.2s"
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#dbeafe"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; }}
-                  >
-                    🔍 ค้นหาผู้ใช้ในระบบ
-                  </button>
-                  <span style={{ fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eff6ff", color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe" }}>
-                    {supportRequests.length} เรื่องที่ค้างอยู่
-                  </span>
-                </div>
+                <span style={{ marginLeft: "auto", fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eff6ff", color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe" }}>
+                  {supportRequests.length} เรื่องที่ค้างอยู่
+                </span>
               </div>
 
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: "#eff6ff", borderBottom: "1.5px solid #bfdbfe" }}>
-  <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "15%" }}>ข้อมูลติดต่อกลับ</th>
-  <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "15%" }}>ชื่อ-นามสกุล</th>  {/* ← เพิ่ม */}
-  <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "40%" }}>รายละเอียดปัญหา</th>
-  <th style={{ padding: "12px 10px", textAlign: "center", color: "#2563eb", fontWeight: 600, width: "15%" }}>เวลาที่แจ้ง</th>
-  <th style={{ padding: "12px 10px", textAlign: "center", color: "#2563eb", fontWeight: 600, width: "15%" }}>การจัดการ</th>
-</tr>
-
+                      <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "15%" }}>ข้อมูลติดต่อกลับ</th>
+                      <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "15%" }}>ชื่อ-นามสกุล</th>
+                      <th style={{ padding: "12px 10px", textAlign: "left", color: "#2563eb", fontWeight: 600, width: "40%" }}>รายละเอียดปัญหา</th>
+                      <th style={{ padding: "12px 10px", textAlign: "center", color: "#2563eb", fontWeight: 600, width: "15%" }}>เวลาที่แจ้ง</th>
+                      <th style={{ padding: "12px 10px", textAlign: "center", color: "#2563eb", fontWeight: 600, width: "15%" }}>การจัดการ</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {supportRequests.length === 0 ? (
                       <tr>
-                        <td colSpan={4} style={{ padding: "30px", textAlign: "center", color: "#94a3b8" }}>
+                        <td colSpan={5} style={{ padding: "30px", textAlign: "center", color: "#94a3b8" }}>
                           🎉 ดีเยี่ยม! ไม่มีรายการแจ้งปัญหาค้างในระบบ
                         </td>
                       </tr>
@@ -1006,55 +1135,105 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* ✅ EDIT DOCTOR MODAL */}
-      {editingRow && (
+      {/* ✅ EDIT STAFF MODAL */}
+      {editingStaff && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
           background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center",
           justifyContent: "center", zIndex: 1000, padding: 20,
         }}
-          onClick={handleCloseEdit}>
+          onClick={handleCloseEditStaff}>
           <div style={{
             background: "#fff", borderRadius: 18, padding: 28, maxWidth: 400,
             width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
           }}
             onClick={e => e.stopPropagation()}>
             <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
-              แก้ไขข้อมูล {editingRow.first_name} {editingRow.last_name}
+              แก้ไขข้อมูล {editingStaff.first_name} {editingStaff.last_name}
             </h2>
-            <form onSubmit={handleSaveEdit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <form onSubmit={handleSaveEditStaff} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <Field label="ชื่อ" required>
-                <SI required placeholder="ชื่อ" value={editForm.first_name}
-                  onChange={e => setEditForm(p => ({ ...p, first_name: e.target.value }))} />
+                <SI required placeholder="ชื่อ" value={editStaffForm.first_name}
+                  onChange={e => setEditStaffForm(p => ({ ...p, first_name: e.target.value }))} />
               </Field>
               <Field label="นามสกุล" required>
-                <SI required placeholder="นามสกุล" value={editForm.last_name}
-                  onChange={e => setEditForm(p => ({ ...p, last_name: e.target.value }))} />
+                <SI required placeholder="นามสกุล" value={editStaffForm.last_name}
+                  onChange={e => setEditStaffForm(p => ({ ...p, last_name: e.target.value }))} />
               </Field>
               <Field label="อีเมล" required>
-                <SI required type="email" placeholder="email@example.com" value={editForm.email}
-                  onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} />
+                <SI required type="email" placeholder="email@example.com" value={editStaffForm.email}
+                  onChange={e => setEditStaffForm(p => ({ ...p, email: e.target.value }))} />
               </Field>
               <Field label="ตำแหน่ง">
-                <SI placeholder="เช่น แพทย์ทั่วไป" value={editForm.position}
-                  onChange={e => setEditForm(p => ({ ...p, position: e.target.value }))} />
+                <SI placeholder="เช่น แพทย์ทั่วไป" value={editStaffForm.position}
+                  onChange={e => setEditStaffForm(p => ({ ...p, position: e.target.value }))} />
               </Field>
 
               <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                <button type="submit" disabled={editLoading}
+                <button type="submit" disabled={editStaffLoading}
                   style={{
                     flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13,
-                    fontWeight: 600, color: "#fff", cursor: editLoading ? "not-allowed" : "pointer",
-                    background: editLoading ? "#cbd5e1" : "#3b82f6", transition: "all 0.2s",
+                    fontWeight: 600, color: "#fff", cursor: editStaffLoading ? "not-allowed" : "pointer",
+                    background: editStaffLoading ? "#cbd5e1" : "#3b82f6", transition: "all 0.2s",
                   }}>
-                  {editLoading ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
+                  {editStaffLoading ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
                 </button>
-                <button type="button" onClick={handleCloseEdit} disabled={editLoading}
+                <button type="button" onClick={handleCloseEditStaff} disabled={editStaffLoading}
                   style={{
                     flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0",
                     fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc",
-                    cursor: editLoading ? "not-allowed" : "pointer", transition: "all 0.2s",
-                    opacity: editLoading ? 0.5 : 1,
+                    cursor: editStaffLoading ? "not-allowed" : "pointer", transition: "all 0.2s",
+                    opacity: editStaffLoading ? 0.5 : 1,
+                  }}>
+                  ยกเลิก
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ EDIT USER MODAL */}
+      {editingUser && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center",
+          justifyContent: "center", zIndex: 1000, padding: 20,
+        }}
+          onClick={handleCloseEditUser}>
+          <div style={{
+            background: "#fff", borderRadius: 18, padding: 28, maxWidth: 400,
+            width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          }}
+            onClick={e => e.stopPropagation()}>
+            <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
+              แก้ไขข้อมูล {editingUser.name}
+            </h2>
+            <form onSubmit={handleSaveEditUser} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <Field label="ชื่อ-นามสกุล" required>
+                <SI required placeholder="ชื่อ-นามสกุล" value={editUserForm.name}
+                  onChange={e => setEditUserForm(p => ({ ...p, name: e.target.value }))} />
+              </Field>
+              <Field label="อีเมล" required>
+                <SI required type="email" placeholder="email@example.com" value={editUserForm.email}
+                  onChange={e => setEditUserForm(p => ({ ...p, email: e.target.value }))} />
+              </Field>
+
+              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                <button type="submit" disabled={editUserLoading}
+                  style={{
+                    flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13,
+                    fontWeight: 600, color: "#fff", cursor: editUserLoading ? "not-allowed" : "pointer",
+                    background: editUserLoading ? "#cbd5e1" : "#6366f1", transition: "all 0.2s",
+                  }}>
+                  {editUserLoading ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
+                </button>
+                <button type="button" onClick={handleCloseEditUser} disabled={editUserLoading}
+                  style={{
+                    flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+                    fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc",
+                    cursor: editUserLoading ? "not-allowed" : "pointer", transition: "all 0.2s",
+                    opacity: editUserLoading ? 0.5 : 1,
                   }}>
                   ยกเลิก
                 </button>
@@ -1114,104 +1293,6 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ USERS SEARCH MODAL — ค้นหาผู้ใช้ในระบบ */}
-      {showUsersModal && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center",
-          justifyContent: "center", zIndex: 1000, padding: 20,
-        }}
-          onClick={() => setShowUsersModal(false)}>
-          <div style={{
-            background: "#fff", borderRadius: 18, padding: 24, maxWidth: 640,
-            width: "100%", maxHeight: "80vh", display: "flex", flexDirection: "column",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-          }}
-            onClick={e => e.stopPropagation()}>
-
-            {/* หัวข้อ */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-              <div style={{ width: 3, height: 18, borderRadius: 99, background: "#3b82f6" }} />
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
-                🔍 ค้นหาผู้ใช้ในระบบ
-              </h2>
-              <span style={{
-                fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#eff6ff",
-                color: "#3b82f6", fontWeight: 600, border: "1px solid #bfdbfe", marginLeft: "auto"
-              }}>
-                {filteredUsers.length} คน
-              </span>
-            </div>
-
-            {/* ช่องค้นหา */}
-            <div style={{ position: "relative", marginBottom: 14 }}>
-              <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
-                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                autoFocus
-                placeholder="พิมพ์ชื่อ, username หรือ email เพื่อค้นหา..."
-                value={userSearch}
-                onChange={e => setUserSearch(e.target.value)}
-                style={{
-                  width: "100%", padding: "10px 14px 10px 38px", borderRadius: 10,
-                  border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: 14,
-                  color: "#1e293b", outline: "none", boxSizing: "border-box",
-                }}
-                onFocus={e => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.background = "#eff6ff"; }}
-                onBlur={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#f8fafc"; }}
-              />
-            </div>
-
-            {/* ตารางผลลัพธ์ */}
-            <div style={{ overflowY: "auto", flex: 1 }}>
-              {usersLoading ? (
-                <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
-                  กำลังโหลดข้อมูล...
-                </div>
-              ) : filteredUsers.length === 0 ? (
-                <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
-                  <div style={{ fontSize: 32, opacity: 0.3, marginBottom: 8 }}>🔍</div>
-                  {userSearch ? "ไม่พบผู้ใช้ที่ค้นหา" : "ยังไม่มีผู้ใช้ในระบบ"}
-                </div>
-              ) : (
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: "#eff6ff", borderBottom: "1.5px solid #bfdbfe", position: "sticky", top: 0 }}>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#2563eb", fontWeight: 600 }}>ชื่อ-นามสกุล</th>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#2563eb", fontWeight: 600 }}>Username</th>
-                      <th style={{ padding: "10px 12px", textAlign: "left", color: "#2563eb", fontWeight: 600 }}>อีเมล</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsers.map((u) => (
-                      <tr key={u.id} style={{ borderBottom: "1px solid #f1f5f9" }}
-                        onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
-                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                        <td style={{ padding: "10px 12px", color: "#1e293b", fontWeight: 500 }}>{u.name}</td>
-                        <td style={{ padding: "10px 12px", color: "#475569" }}>{u.username || "—"}</td>
-                        <td style={{ padding: "10px 12px", color: "#94a3b8" }}>{u.email || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* ปุ่มปิด */}
-            <button
-              onClick={() => setShowUsersModal(false)}
-              style={{
-                marginTop: 16, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0",
-                background: "#f8fafc", color: "#64748b", fontSize: 13, fontWeight: 600, cursor: "pointer",
-              }}>
-              ปิด
-            </button>
           </div>
         </div>
       )}
