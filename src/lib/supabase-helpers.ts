@@ -1,6 +1,6 @@
 // lib/supabase-helpers.ts
 import { supabase } from './supabase';
-import type { Doctor, DoctorStatus } from '@/types/supabase';
+import type { Doctor, DoctorStatus } from '@/type/supabase';
 
 // ============================================================
 // 📝 DOCTOR REGISTRATION (ลงทะเบียนแพทย์ใหม่)
