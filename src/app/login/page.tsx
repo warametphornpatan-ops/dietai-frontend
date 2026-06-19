@@ -173,7 +173,7 @@ export default function LoginPage() {
     setSendingSupport(true);
     try {
       // ✅ FIXED: API_URL already has /api, so just use /support-requests
-      const res = await fetch(`${API_URL}/support-requests`, {
+      const res = await fetch(`${API_URL}/api/support-requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
