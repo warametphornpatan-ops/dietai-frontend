@@ -138,7 +138,7 @@ export default function DoctorDashboard() {
       });
 
       if (orgCode) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/organizations/${orgCode}`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organizations/${orgCode}`)
           .then(res => { if (res.ok) return res.json(); throw new Error(); })
           .then((data: Record<string, unknown>) => {
             setDoctorProfile(prev => prev ? {
@@ -179,7 +179,7 @@ export default function DoctorDashboard() {
     if (!targetId) { alert("ไม่พบรหัสผู้ป่วย"); return; }
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/doctors/patients/${targetId}/health-records`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/doctors/patients/${targetId}/health-records`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           systolic: systolicInput ? parseInt(systolicInput) : null,
