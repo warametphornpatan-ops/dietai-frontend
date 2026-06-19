@@ -333,11 +333,12 @@ export default function DoctorDashboard() {
         {/* Patient Detail */}
         {selected && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* ✅ ปุ่มกลับไปค้นหา - ปรับใหญ่ขึ้นและชัดเจน */}
             <button onClick={() => { setSelected(null); setKeyword(""); }}
-              style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 500, color: T.textSub, background: "none", border: "none", cursor: "pointer", padding: "2px 0", width: "fit-content" }}
-              onMouseEnter={e => e.currentTarget.style.color = T.text}
-              onMouseLeave={e => e.currentTarget.style.color = T.textSub}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 600, color: T.accent, background: T.accentLight, border: `1.5px solid ${T.accentBorder}`, cursor: "pointer", padding: "10px 16px", width: "fit-content", borderRadius: 10, boxShadow: T.shadow, transition: "all 0.2s" }}
+              onMouseEnter={e => { e.currentTarget.style.background = T.accent; e.currentTarget.style.color = T.white; e.currentTarget.style.boxShadow = "0 4px 12px rgba(37,99,235,0.3)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = T.accentLight; e.currentTarget.style.color = T.accent; e.currentTarget.style.boxShadow = T.shadow; e.currentTarget.style.transform = "translateY(0)"; }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
               กลับไปหน้าค้นหา
             </button>
 
