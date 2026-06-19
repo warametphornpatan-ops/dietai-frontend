@@ -232,7 +232,8 @@ export default function LoginPage() {
       let detectedRole = "user";
 
       if (loginType === "user") {
-        const res = await fetch(`${API_URL}/user/login`, {
+        // ✅ FIXED: Changed from /user/login to /api/user/login
+        const res = await fetch(`${API_URL}/api/user/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
@@ -249,8 +250,8 @@ export default function LoginPage() {
         detectedRole = "user";
       } else {
         // Try doctor first
-        // ✅ FIXED: Changed from /doctors/login to /api/doctors/login
-        let res = await fetch(`${API_URL}/api/doctors/login`, {
+        // ✅ FIXED: Changed from /api/doctors/login to /api/doctor/login
+        let res = await fetch(`${API_URL}/api/doctor/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password, org_code: orgCode }),
@@ -262,8 +263,8 @@ export default function LoginPage() {
           detectedRole = "doctor";
         } else {
           // Try admin
-          // ✅ FIXED: Changed from /admins/login to /api/admins/login
-          res = await fetch(`${API_URL}/api/admins/login`, {
+          // ✅ FIXED: Changed from /api/admins/login to /api/admin/login
+          res = await fetch(`${API_URL}/api/admin/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password, org_code: orgCode }),
