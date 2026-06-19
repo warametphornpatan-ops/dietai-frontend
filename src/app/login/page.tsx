@@ -144,7 +144,7 @@ export default function LoginPage() {
     setCheckingOrg(true);
     try {
       // ✅ FIXED: API_URL already has /api, so just use /organizations/{code}
-      const res = await fetch(`${API_URL}/organizations/${code}`);
+      const res = await fetch(`${API_URL}/api/organizations/${code}`);
       if (!res.ok) {
         alert("ไม่พบรหัสหน่วยงานนี้ในระบบ โปรดตรวจสอบอีกครั้ง");
         setOrgName("");
@@ -235,7 +235,7 @@ export default function LoginPage() {
 
       if (loginType === "user") {
         // ✅ FIXED: API_URL already has /api, so just use /user/login
-        const res = await fetch(`${API_URL}/user/login`, {
+        const res = await fetch(`${API_URL}/api/user/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
@@ -253,7 +253,7 @@ export default function LoginPage() {
       } else {
         // Try doctor first
         // ✅ FIXED: API_URL already has /api, so just use /doctor/login
-        let res = await fetch(`${API_URL}/doctor/login`, {
+        let res = await fetch(`${API_URL}/api/doctor/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password, org_code: orgCode }),
@@ -266,7 +266,7 @@ export default function LoginPage() {
         } else {
           // Try admin
           // ✅ FIXED: API_URL already has /api, so just use /admin/login
-          res = await fetch(`${API_URL}/admin/login`, {
+          res = await fetch(`${API_URL}/api/admin/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password, org_code: orgCode }),
