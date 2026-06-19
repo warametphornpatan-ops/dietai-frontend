@@ -70,31 +70,31 @@ function getBmiLabel(b: number): { label: string; color: string } {
 // ✅ แก้: แสดงวันเกิดแบบละเอียด (ปี เดือน วัน)
 function calculateAgeDetailed(birthDateStr: string): { ageString: string; years: number; months: number; days: number } {
   if (!birthDateStr) return { ageString: "", years: 0, months: 0, days: 0 };
-  
+
   const birthDate = new Date(birthDateStr);
   const today = new Date();
-  
+
   let years = today.getFullYear() - birthDate.getFullYear();
   let months = today.getMonth() - birthDate.getMonth();
   let days = today.getDate() - birthDate.getDate();
-  
+
   if (days < 0) {
     months--;
     const prevMonth = new Date(today.getFullYear(), today.getMonth(), 0);
     days += prevMonth.getDate();
   }
-  
+
   if (months < 0) {
     years--;
     months += 12;
   }
-  
+
   years = Math.max(0, years);
   months = Math.max(0, months);
   days = Math.max(0, days);
-  
+
   const ageString = `เกิดมา ${years} ปี ${months} เดือน ${days} วัน`;
-  
+
   return { ageString, years, months, days };
 }
 
@@ -363,7 +363,7 @@ export default function RegisterWizard() {
       setCitizenIDStatus(null);
       return;
     }
-    
+
     const result = validateThaiID(citizenID);
     setCitizenIDStatus({
       isValid: result.isValid,
@@ -486,7 +486,7 @@ export default function RegisterWizard() {
         }
 
         if (verifyData?.user) {
-          const response = await fetch(`${API_URL}/user/register`, {
+          const response = await fetch(`${API_URL}/auth/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -544,7 +544,7 @@ export default function RegisterWizard() {
         citizen_id: norm.citizen_id,
       };
 
-      const res = await fetch(`${API_URL}/user/register`, {
+      const res = await fetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
