@@ -127,12 +127,85 @@ const formatBeverageData = (item: ApiFoodItem, index: number): FoodFromDB => {
     };
 };
 
-// ✅ ฟังก์ชันลบ Duplicates โดยใช้ Set
+// ❌ รายชื่อเครื่องดื่มแปลกๆ ที่ต้องลบออก
+const BEVERAGE_BLACKLIST = [
+    'มะม่วงพิมเสนนิน',
+    'แนนม',
+    'ระดับโรงงาน',
+    'นนป',
+    'คิบ',
+    'สกุ',
+    'น้ำม',
+];
+
+// ✅ ฟังก์ชันตรวจสอบว่าชื่ออาหารดีหรือไม่
+const isValidFoodName = (name: string, category?: string): boolean => {
+    if (!name || name.trim().length === 0) return false;
+    
+    const trimmed = name.trim().toLowerCase();
+    
+    // ❌ ตรวจสอบ Blacklist เครื่องดื่ม
+    if (category === 'เครื่องดื่ม') {
+        for (const badName of BEVERAGE_BLACKLIST) {
+            if (trimmed.includes(badName.toLowerCase())) {
+                return false;
+            }
+        }
+    }
+    
+    // ❌ ลบชื่อที่เหมือน "มะม่วงพิมเสนนิน" - ตัวอักษรซ้ำบ้าง หรือไม่เป็นคำจริง
+    const suspiciousPatterns = [
+        /^\d+/, // เริ่มด้วยตัวเลข
+        /[,،]/g.test(trimmed) && /[,،]{2,}/.test(trimmed), // เครื่องหมายจุลภาคซ้ำ
+        /ระดับโรงงาน/, // ชื่อไม่เกี่ยวกับอาหาร
+    ];
+    
+    for (const pattern of suspiciousPatterns) {
+        if (pattern instanceof RegExp && pattern.test(trimmed)) {
+            return false;
+        }
+    }
+    
+    // ❌ ลบคำที่ดูเหมือนจะ corrupted (ตัวอักษรนอนไทยไม่สมบูรณ์)
+    const thaiCharCount = (trimmed.match(/[\u0E00-\u0E7F]/g) || []).length;
+    const totalLen = trimmed.replace(/\s|[,،]/g, '').length;
+    
+    // ถ้าตัวอักษรไทยน้อยกว่า 40% อาจเป็นชื่อแปลก
+    if (thaiCharCount > 0 && totalLen > 0 && (thaiCharCount / totalLen) < 0.4) {
+        return false;
+    }
+    
+    return true;
+};
+
+// ✅ ฟังก์ชันตรวจสอบว่าคุณค่าอาหารสมเหตุสมผลหรือไม่
+const isValidCalories = (calories: number): boolean => {
+    return calories > 0 && calories <= 2000; // kcal ต่อหนึ่งสิ่ง ควรอยู่ 0-2000
+};
+
+// ✅ ฟังก์ชันลบ Duplicates และ Invalid Data
 const removeDuplicates = (foods: FoodFromDB[]): FoodFromDB[] => {
     const seen = new Set<string>();
     const unique: FoodFromDB[] = [];
+    let invalidCount = 0;
+    const invalidReasons: { name: string; category: string; reason: string }[] = [];
     
     for (const food of foods) {
+        // ✅ ตรวจสอบความสมเหตุสมผลของข้อมูล (ส่ง category ด้วย)
+        if (!isValidFoodName(food.name, food.category)) {
+            invalidCount++;
+            invalidReasons.push({ name: food.name, category: food.category, reason: "ชื่อแปลกๆ/ตัวอักษรเสีย/blacklist" });
+            console.warn(`⚠️ Invalid food name: "${food.name}" (${food.category}) - skipped`);
+            continue;
+        }
+        
+        if (!isValidCalories(food.calories)) {
+            invalidCount++;
+            invalidReasons.push({ name: food.name, category: food.category, reason: `kcal ไม่สมเหตุสมผล (${food.calories})` });
+            console.warn(`⚠️ Invalid calories: "${food.name}" (${food.calories} kcal) - skipped`);
+            continue;
+        }
+        
         const key = `${food.name.toLowerCase()}-${food.category}`;
         if (!seen.has(key)) {
             seen.add(key);
@@ -140,7 +213,16 @@ const removeDuplicates = (foods: FoodFromDB[]): FoodFromDB[] => {
         }
     }
     
-    console.log(`📊 Duplicates removed: ${foods.length} → ${unique.length}`);
+    console.log(`📊 Cleanup: ${foods.length} → ${unique.length} (removed ${invalidCount})`);
+    
+    if (invalidReasons.length > 0) {
+        console.group("🚫 Removed items:");
+        invalidReasons.forEach(item => {
+            console.log(`   • [${item.category}] ${item.name}: ${item.reason}`);
+        });
+        console.groupEnd();
+    }
+    
     return unique;
 };
 
@@ -214,7 +296,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                     allFoods = (result as unknown as ApiFoodItem[]).map((item, idx) => formatDishData(item, idx));
                 }
 
-                // ✅ ลบ Duplicates ก่อน setFoods
+                // ✅ ลบ Duplicates และ Invalid Data
                 const uniqueFoods = removeDuplicates(allFoods);
 
                 if (uniqueFoods.length > 0) {
@@ -228,8 +310,9 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                         เครื่องดื่ม: uniqueFoods.filter(f => f.category === "เครื่องดื่ม").length,
                     };
                     console.log("📋 Category breakdown:", breakdown);
+                    console.log("✅ Valid foods ready for display");
                 } else {
-                    console.warn("⚠️ No valid food data found in the response payload");
+                    console.warn("⚠️ No valid food data found after cleanup");
                     setFoods([]);
                 }
 
