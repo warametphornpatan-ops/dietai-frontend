@@ -34,6 +34,7 @@ interface HealthRecord {
     pulse: number | null;
     recommendation: string;
     createdAt?: string;
+    created_at?: string; 
 }
 
 interface MacroCardProps {
@@ -60,7 +61,7 @@ function formatThaiDateTime(dateString: string | undefined): { date: string; tim
     if (!dateString) {
         return { date: "ไม่ระบุวันที่", time: "" };
     }
-    
+
     try {
         const date = new Date(dateString);
         const thaiDate = date.toLocaleDateString("th-TH", {
@@ -72,7 +73,7 @@ function formatThaiDateTime(dateString: string | undefined): { date: string; tim
             hour: "2-digit",
             minute: "2-digit"
         });
-        
+
         return { date: thaiDate, time };
     } catch {
         return { date: "ไม่ระบุวันที่", time: "" };
@@ -136,17 +137,17 @@ async function refetchNutritionData(token: string, userId: number) {
 
         const data = await res.json();
         console.log("✅ Refetch success:", data);
-        
+
         const nutrition = {
             cal: data.total_calories || 0,
             carb: data.total_carbs || 0,
             protein: data.total_protein || 0,
             fat: data.total_fat || 0,
         };
-        
+
         // ✅ บันทึกลง localStorage
         saveUserNutrition(nutrition);
-        
+
         return nutrition;
     } catch (error) {
         console.error("❌ Refetch error:", error);
@@ -264,7 +265,14 @@ export default function HomePage() {
 
                         if (hrRes.ok) {
                             const hrData = await hrRes.json();
-                            setHealthRecords(Array.isArray(hrData) ? hrData : []);
+
+                            // ✅ TRANSFORM: created_at → createdAt
+                            const transformed = Array.isArray(hrData) ? hrData.map((item: HealthRecord) => ({
+                                ...item,
+                                createdAt: item.created_at || item.createdAt
+                            })) : [];
+
+                            setHealthRecords(transformed);
                         }
                     } catch (hrError) {
                         console.error("Failed to load health records:", hrError);
@@ -347,7 +355,7 @@ export default function HomePage() {
                     protein: data.total_protein || 0,
                     fat: data.total_fat || 0,
                 };
-                
+
                 setCalEaten(nutrition.cal);
                 setCarbEaten(nutrition.carb);
                 setProEaten(nutrition.protein);
@@ -503,7 +511,7 @@ export default function HomePage() {
                                         <div className="space-y-2">
                                             <div className="relative pl-4 border-l-2 border-blue-200">
                                                 <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-blue-200"></div>
-                                                
+
                                                 {/* ✅ FIXED: ใช้ formatThaiDateTime() - แสดงวันที่ + เวลา */}
                                                 {(() => {
                                                     const { date: thaiDate, time: thaiTime } = formatThaiDateTime(healthRecords[0].createdAt);
@@ -520,7 +528,7 @@ export default function HomePage() {
                                                         </>
                                                     );
                                                 })()}
-                                                
+
                                                 <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-600 line-clamp-2">
                                                     {healthRecords[0].recommendation}
                                                 </div>
@@ -582,7 +590,7 @@ export default function HomePage() {
                                         return (
                                             <div key={rec.id} className="relative pl-4 border-l-2 border-blue-200">
                                                 <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-blue-400"></div>
-                                                
+
                                                 <div className="mb-2">
                                                     <p className="text-xs font-semibold text-blue-600 mb-0.5">
                                                         📅 {thaiDate}
@@ -608,7 +616,7 @@ export default function HomePage() {
                                                         )}
                                                     </div>
                                                 )}
-                                                
+
                                                 <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-600 leading-relaxed">
                                                     {rec.recommendation}
                                                 </div>
