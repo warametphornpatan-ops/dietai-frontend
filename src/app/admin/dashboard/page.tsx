@@ -829,8 +829,8 @@ export default function AdminDashboardPage() {
                   style={{
                     borderColor:
                       citizenIdValidation.status === "ok" ? "#22c55e" :
-                      citizenIdValidation.status === "error" ? "#ef4444" :
-                      "#e2e8f0"
+                        citizenIdValidation.status === "error" ? "#ef4444" :
+                          "#e2e8f0"
                   }}
                   onChange={e => {
                     const val = e.target.value.replace(/\D/g, "");
@@ -1241,15 +1241,27 @@ export default function AdminDashboardPage() {
           onClick={handleCloseEditUser}>
           <div style={{ background: "#fff", borderRadius: 18, padding: 28, maxWidth: 400, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
             onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
+            <h2 style={{ margin: "0 0 6px 0", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
               แก้ไขข้อมูล {editingUser.name}
             </h2>
+            <p style={{ margin: "0 0 20px 0", fontSize: 12, color: "#94a3b8" }}>
+              กรอกเฉพาะช่องที่ต้องการแก้ไข ช่องที่เว้นว่างจะคงค่าเดิม
+            </p>
             <form onSubmit={handleSaveEditUser} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Field label="ชื่อ-นามสกุล" required>
-                <SI required placeholder="ชื่อ-นามสกุล" value={editUserForm.name} onChange={e => setEditUserForm(p => ({ ...p, name: e.target.value }))} />
+              <Field label="ชื่อ-นามสกุล">
+                <SI
+                  placeholder={`คงค่าเดิม: ${editingUser.name}`}
+                  value={editUserForm.name}
+                  onChange={e => setEditUserForm(p => ({ ...p, name: e.target.value }))}
+                />
               </Field>
-              <Field label="อีเมล" required>
-                <SI required type="email" placeholder="email@example.com" value={editUserForm.email} onChange={e => setEditUserForm(p => ({ ...p, email: e.target.value }))} />
+              <Field label="อีเมล">
+                <SI
+                  type="email"
+                  placeholder={`คงค่าเดิม: ${editingUser.email || "ไม่มี"}`}
+                  value={editUserForm.email}
+                  onChange={e => setEditUserForm(p => ({ ...p, email: e.target.value }))}
+                />
               </Field>
               <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
                 <button type="submit" disabled={editUserLoading}
