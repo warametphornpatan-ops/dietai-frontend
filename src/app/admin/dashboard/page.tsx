@@ -900,60 +900,74 @@ export default function AdminDashboardPage() {
                   <span style={{ marginLeft: "auto", fontSize: 11, padding: "2px 10px", borderRadius: 99, background: "#fef3c7", color: "#b45309", fontWeight: 600, border: "1px solid #fcd34d" }}>{pendingApplications.length} คน</span>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-                  {pendingApplications.map((app) => {
-                    const color = avatarColors[app.id % avatarColors.length];
-                    const isApproving = approvingId === app.id;
-                    const isRejecting = rejectingId === app.id;
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: "#fffbeb", borderBottom: "1.5px solid #fcd34d" }}>
+                        {["#", "ชื่อ-นามสกุล", "ตำแหน่ง", "อีเมล", "สถานะ Email", "จัดการ"].map((h, i) => (
+                          <th key={h} style={{ padding: "10px 12px", textAlign: i === 0 || i === 5 ? "center" : "left", fontWeight: 600, color: "#92400e", whiteSpace: "nowrap", fontSize: 12 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingApplications.map((app, i) => {
+                        const color = avatarColors[i % avatarColors.length];
+                        const isApproving = approvingId === app.id;
+                        const isRejecting = rejectingId === app.id;
 
-                    return (
-                      <div key={app.id} style={{
-                        borderRadius: 14, padding: 14, background: "#fffbeb", border: "1.5px solid #fcd34d",
-                        boxShadow: "0 1px 8px rgba(251,191,36,0.15)"
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
-                            {app.first_name[0]}{app.last_name[0]}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{app.first_name} {app.last_name}</div>
-                            <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{app.position || "ไม่ระบุตำแหน่ง"}</div>
-                          </div>
-                        </div>
+                        return (
+                          <tr key={app.id} style={{ borderBottom: "1px solid #fef3c7", transition: "background 0.15s" }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#fffbeb"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
 
-                        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12, display: "flex", flexDirection: "column", gap: 4 }}>
-                          <div><strong>Email:</strong> {app.email}</div>
-                          <div><strong>Username:</strong> {app.username}</div>
-                          <div><strong>สถานะ email:</strong> {app.email_verified ? "✅ ยืนยันแล้ว" : "⏳ รอยืนยัน"}</div>
-                        </div>
+                            {/* # */}
+                            <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600, color: "#cbd5e1", fontSize: 12 }}>{i + 1}</td>
 
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button
-                            onClick={() => handleApproveDoctorApplication(app)}
-                            disabled={isApproving || isRejecting}
-                            style={{
-                              flex: 1, padding: "8px", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
-                              color: "#fff", background: isApproving ? "#d1d5db" : "#10b981",
-                              cursor: isApproving || isRejecting ? "not-allowed" : "pointer",
-                              opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.2s"
-                            }}>
-                            {isApproving ? "กำลัง..." : "✅ อนุมัติ"}
-                          </button>
-                          <button
-                            onClick={() => handleRejectDoctorApplication(app)}
-                            disabled={isApproving || isRejecting}
-                            style={{
-                              flex: 1, padding: "8px", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
-                              color: "#fff", background: isRejecting ? "#d1d5db" : "#ef4444",
-                              cursor: isApproving || isRejecting ? "not-allowed" : "pointer",
-                              opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.2s"
-                            }}>
-                            {isRejecting ? "กำลัง..." : "❌ ปฏิเสธ"}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                            {/* ชื่อ-นามสกุล */}
+                            <td style={{ padding: "10px 12px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                                <div style={{ width: 32, height: 32, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+                                  {app.first_name[0]}{app.last_name[0]}
+                                </div>
+                                <span style={{ color: "#1e293b", fontWeight: 500 }}>{app.first_name} {app.last_name}</span>
+                              </div>
+                            </td>
+
+                            {/* ตำแหน่ง */}
+                            <td style={{ padding: "10px 12px", color: "#64748b" }}>{app.position || "ไม่ระบุ"}</td>
+
+                            {/* อีเมล */}
+                            <td style={{ padding: "10px 12px", color: "#64748b", fontSize: 12 }}>{app.email}</td>
+
+                            {/* สถานะ Email */}
+                            <td style={{ padding: "10px 12px" }}>
+                              <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, fontWeight: 600, whiteSpace: "nowrap", display: "inline-block", background: app.email_verified ? "#f0fdf4" : "#fef2f2", color: app.email_verified ? "#16a34a" : "#dc2626", border: `1px solid ${app.email_verified ? "#bbf7d0" : "#fecaca"}` }}>
+                                {app.email_verified ? "✅ ยืนยันแล้ว" : "⏳ รอยืนยัน"}
+                              </span>
+                            </td>
+
+                            {/* จัดการ */}
+                            <td style={{ padding: "10px 12px", textAlign: "center" }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                <button
+                                  onClick={() => handleApproveDoctorApplication(app)}
+                                  disabled={isApproving || isRejecting}
+                                  style={{ padding: "5px 12px", borderRadius: 7, border: "none", background: isApproving ? "#cbd5e1" : "#10b981", color: "#fff", fontSize: 12, fontWeight: 600, cursor: isApproving || isRejecting ? "not-allowed" : "pointer", opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.15s" }}>
+                                  {isApproving ? "..." : "✅"}
+                                </button>
+                                <button
+                                  onClick={() => handleRejectDoctorApplication(app)}
+                                  disabled={isApproving || isRejecting}
+                                  style={{ padding: "5px 12px", borderRadius: 7, border: "none", background: isRejecting ? "#cbd5e1" : "#ef4444", color: "#fff", fontSize: 12, fontWeight: 600, cursor: isApproving || isRejecting ? "not-allowed" : "pointer", opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.15s" }}>
+                                  {isRejecting ? "..." : "❌"}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
