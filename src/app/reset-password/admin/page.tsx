@@ -63,16 +63,14 @@ export default function AdminResetPasswordPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<"user" | "staff">("staff");
   const [form, setForm] = useState({
     identifier: "", username: "",
     newPassword: "", confirmNewPassword: "",
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const [checkingIdCard, setCheckingIdCard] = useState(false);
-  const [isIdCardVerified, setIsIdCardVerified] = useState(false);
-  const [verifiedFullName, setVerifiedFullName] = useState("");
-
+  // 🔐 OTP States
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -80,21 +78,30 @@ export default function AdminResetPasswordPage() {
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [staffEmail, setStaffEmail] = useState("");
 
+  // 🆔 บัตรประชาชน States
+  const [checkingIdCard, setCheckingIdCard] = useState(false);
+  const [isIdCardVerified, setIsIdCardVerified] = useState(false);
+  const [verifiedFullName, setVerifiedFullName] = useState("");
+
   const handleSetValue = (key: string) => (val: string) => {
     setForm(p => ({ ...p, [key]: val }));
     setFieldErrors(p => ({ ...p, [key]: "" }));
 
     if (key === "identifier") {
-      setIsIdCardVerified(false);
       setIsEmailVerified(false);
+      setIsIdCardVerified(false);
       setVerifiedFullName("");
       setStaffEmail("");
     }
   };
 
   const pwMatch = form.confirmNewPassword && form.newPassword === form.confirmNewPassword;
-  const isInputIdCard13 = !form.identifier.includes("@") && form.identifier.replace(/\D/g, "").length === 13;
+  const isInputEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.identifier.trim());
 
+  const digitsOnly = form.identifier.replace(/\D/g, "");
+  const isInputIdCard13 = !form.identifier.includes("@") && digitsOnly.length === 13;
+
+  // 🔍 ตรวจสอบเลขบัตรประชาชน
   async function handleVerifyIdCard() {
     if (!isInputIdCard13) return;
 
@@ -106,11 +113,12 @@ export default function AdminResetPasswordPage() {
       setCheckingIdCard(false);
       return;
     }
-    
+
     const digitsOnly = form.identifier.replace(/\D/g, "");
+    const endpoint = role === "staff" ? "/staff/check-idcard" : "/users/check-idcard";
 
     try {
-      const res = await fetch(`${API_URL}/api/staff/check-idcard`, {
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id_card: digitsOnly }),
@@ -136,7 +144,8 @@ export default function AdminResetPasswordPage() {
     }
   }
 
-  async function handleSendOtp() {
+  // 📧 ส่งรหัส OTP สำหรับเลขบัตร
+  async function handleSendOtpForIdCard() {
     if (!staffEmail) {
       alert("❌ ไม่พบอีเมลที่ลงทะเบียน");
       return;
@@ -164,6 +173,37 @@ export default function AdminResetPasswordPage() {
     }
   }
 
+  // 📧 ส่งรหัส OTP สำหรับอีเมล
+  async function handleSendOtpForEmail() {
+    const emailStr = form.identifier.trim();
+    if (!isInputEmail) {
+      setFieldErrors(p => ({ ...p, identifier: "รูปแบบอีเมลไม่ถูกต้อง" }));
+      return;
+    }
+
+    setSendingOtp(true);
+    setFieldErrors(p => ({ ...p, identifier: "" }));
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: emailStr,
+        options: { shouldCreateUser: true },
+      });
+
+      if (error) {
+        alert(`❌ ไม่สามารถส่ง OTP ได้: ${error.message}`);
+      } else {
+        alert("📩 ส่งรหัส OTP ไปยังอีเมลของคุณแล้ว");
+        setShowOtpModal(true);
+      }
+    } catch {
+      alert("❌ เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบ OTP");
+    } finally {
+      setSendingOtp(false);
+    }
+  }
+
+  // 🔢 ตรวจสอบรหัส OTP
   async function handleVerifyOtp() {
     if (otpCode.trim().length !== 6) {
       alert("กรุณากรอกรหัส OTP ให้ครบ 6 หลัก");
@@ -172,8 +212,10 @@ export default function AdminResetPasswordPage() {
 
     setVerifyingOtp(true);
     try {
+      const emailToVerify = isInputEmail ? form.identifier.trim() : staffEmail;
+      
       const { error } = await supabase.auth.verifyOtp({
-        email: staffEmail,
+        email: emailToVerify,
         token: otpCode.trim(),
         type: "email"
       });
@@ -193,21 +235,29 @@ export default function AdminResetPasswordPage() {
     }
   }
 
+  // 💾 บันทึกเปลี่ยนรหัสผ่าน
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
 
     const errs: Record<string, string> = {};
-    const digitsOnly = form.identifier.replace(/\D/g, "");
+    let finalIdentifier = form.identifier.trim();
+    const isEmail = finalIdentifier.includes("@");
 
-    if (!form.identifier.trim()) {
-      errs.identifier = "กรุณากรอกเลขบัตรประชาชน";
-    } else if (digitsOnly.length !== 13) {
-      errs.identifier = "เลขบัตรประชาชนต้องมี 13 หลัก";
-    } else if (!isIdCardVerified) {
-      errs.identifier = "กรุณากดปุ่มตรวจสอบเลขบัตรประชาชนให้ผ่านก่อน";
-    } else if (!isEmailVerified) {
-      errs.identifier = "กรุณากดส่งและยืนยันรหัส OTP ให้สำเร็จก่อน";
+    if (!finalIdentifier) {
+      errs.identifier = "กรุณากรอกเลขบัตรประชาชนหรืออีเมล";
+    } else if (isEmail) {
+      if (!isInputEmail) errs.identifier = "รูปแบบอีเมลไม่ถูกต้อง";
+      else if (!isEmailVerified) errs.identifier = "กรุณากดส่งและยืนยันรหัส OTP ให้สำเร็จก่อน";
+    } else {
+      finalIdentifier = finalIdentifier.replace(/\D/g, "");
+      if (finalIdentifier.length !== 13) {
+        errs.identifier = "เลขบัตรประชาชนต้องมี 13 หลัก";
+      } else if (!isIdCardVerified) {
+        errs.identifier = "กรุณากดปุ่มเช็คข้อมูลให้ผ่านก่อน";
+      } else if (!isEmailVerified) {
+        errs.identifier = "กรุณากดส่ง OTP และยืนยันให้สำเร็จก่อน";
+      }
     }
 
     if (!form.username.trim()) errs.username = "กรุณากรอกชื่อผู้ใช้งาน (Username)";
@@ -224,13 +274,16 @@ export default function AdminResetPasswordPage() {
 
     setLoading(true);
     const payload = {
-      id_card: digitsOnly,
+      identifier: finalIdentifier,
+      is_email: isEmail,
       username: form.username.trim(),
       new_password: form.newPassword,
     };
 
+    const endpoint = role === "staff" ? "/staff/reset-password" : "/users/reset-password";
+
     try {
-      const res = await fetch(`${API_URL}/api/staff/reset-password`, {
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -279,7 +332,7 @@ export default function AdminResetPasswordPage() {
           <span style={{ fontSize: 24 }}>🔑</span>
         </div>
         <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#0d4f2e" }}>รีเซ็ตรหัสผ่าน</h1>
-        <p style={{ margin: "2px 0 0", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6b9e84" }}>🏥 เจ้าหน้าที่ / แอดมิน</p>
+        <p style={{ margin: "2px 0 0", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6b9e84" }}>Reset Password</p>
       </div>
 
       <div style={{
@@ -290,24 +343,58 @@ export default function AdminResetPasswordPage() {
         position: "relative", zIndex: 1,
       }}>
 
+        <div style={{ display: "flex", borderRadius: 12, padding: 4, marginBottom: 22, background: "#f0faf5" }}>
+          {(["user", "staff"] as const).map(r => (
+            <button key={r} type="button" onClick={() => { setRole(r); setFieldErrors({}); setIsEmailVerified(false); setIsIdCardVerified(false); setVerifiedFullName(""); setStaffEmail(""); setForm(p => ({ ...p, identifier: "" })); }}
+              style={{
+                flex: 1, padding: "9px 0", borderRadius: 9, border: "none", fontSize: 13,
+                fontWeight: role === r ? 700 : 400, cursor: "pointer", transition: "all 0.2s",
+                background: role === r ? "#16a360" : "transparent",
+                color: role === r ? "#fff" : "#6b9e84",
+                boxShadow: role === r ? "0 2px 8px rgba(22,163,96,0.3)" : "none",
+              }}>
+              {r === "user" ? "👤 ผู้ใช้งาน" : "🏥 เจ้าหน้าที่"}
+            </button>
+          ))}
+        </div>
+
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
-          <Field label="เลขบัตรประชาชน" error={fieldErrors.identifier}>
+          <Field label="เลขบัตรประชาชน หรือ อีเมล" error={fieldErrors.identifier}>
             <div style={{ display: "flex", gap: 8 }}>
               <input
-                type="text" value={form.identifier} placeholder="เลขบัตรประชาชน 13 หลัก"
-                disabled={isIdCardVerified && isEmailVerified}
+                type="text" value={form.identifier} placeholder="เลขบัตรประชาชน 13 หลัก หรือ email@domain.com"
+                disabled={isEmailVerified || isIdCardVerified}
                 onChange={e => handleSetValue("identifier")(e.target.value)}
                 style={{
                   ...inputBase,
                   flex: 1,
                   borderColor: fieldErrors.identifier ? "#fca5a5" : "#c8e8d8",
-                  background: (isIdCardVerified && isEmailVerified) ? "#e8f5f0" : "#f4fbf7"
+                  background: (isEmailVerified || isIdCardVerified) ? "#e8f5f0" : "#f4fbf7"
                 }}
                 onFocus={e => e.currentTarget.style.borderColor = "#16a360"}
                 onBlur={e => e.currentTarget.style.borderColor = fieldErrors.identifier ? "#fca5a5" : "#c8e8d8"}
               />
 
+              {/* ปุ่มส่ง OTP สำหรับอีเมล */}
+              {isInputEmail && !isEmailVerified && (
+                <button
+                  type="button"
+                  onClick={handleSendOtpForEmail}
+                  disabled={sendingOtp || !isInputEmail}
+                  style={{
+                    padding: "0 14px", borderRadius: 12, border: "none",
+                    background: sendingOtp ? "#a7d4bc" : "#0d4f2e",
+                    color: "#fff", fontSize: 13, fontWeight: 600,
+                    cursor: sendingOtp ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap", transition: "background 0.2s"
+                  }}
+                >
+                  {sendingOtp ? "กำลังส่ง..." : "ส่ง OTP"}
+                </button>
+              )}
+
+              {/* ปุ่มเช็คบัตรประชาชน */}
               {isInputIdCard13 && !isIdCardVerified && (
                 <button
                   type="button"
@@ -321,14 +408,15 @@ export default function AdminResetPasswordPage() {
                     whiteSpace: "nowrap", transition: "background 0.2s"
                   }}
                 >
-                  {checkingIdCard ? "กำลังตรวจ..." : "ตรวจสอบ"}
+                  {checkingIdCard ? "กำลังตรวจ..." : "เช็คข้อมูล"}
                 </button>
               )}
 
+              {/* ปุ่มส่ง OTP หลังจากเช็คบัตรสำเร็จ */}
               {isInputIdCard13 && isIdCardVerified && !isEmailVerified && (
                 <button
                   type="button"
-                  onClick={handleSendOtp}
+                  onClick={handleSendOtpForIdCard}
                   disabled={sendingOtp}
                   style={{
                     padding: "0 14px", borderRadius: 12, border: "none",
@@ -342,7 +430,25 @@ export default function AdminResetPasswordPage() {
                 </button>
               )}
 
+              {/* ปุ่มสีเขียวแสดงหลังผ่านการตรวจสอบแล้ว */}
               {isInputIdCard13 && isIdCardVerified && isEmailVerified && (
+                <button
+                  type="button"
+                  disabled
+                  style={{
+                    padding: "0 14px", borderRadius: 12, border: "none",
+                    background: "#16a360",
+                    color: "#fff", fontSize: 13, fontWeight: 600,
+                    cursor: "default",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  ตรวจสอบแล้ว
+                </button>
+              )}
+
+              {/* ปุ่มสีเขียวแสดงหลังผ่านการส่ง OTP สำหรับอีเมล */}
+              {isInputEmail && isEmailVerified && (
                 <button
                   type="button"
                   disabled
@@ -359,6 +465,12 @@ export default function AdminResetPasswordPage() {
               )}
             </div>
 
+            {isEmailVerified && (
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#16a360", fontWeight: 600 }}>
+                ✓ ยืนยัน OTP สำเร็จแล้ว
+              </p>
+            )}
+
             {isIdCardVerified && (
               <div style={{ marginTop: 8, padding: "10px 12px", borderRadius: 10, background: "#e8f5f0", border: "1px solid #a3e635" }}>
                 <p style={{ margin: 0, fontSize: 13, color: "#15803d", fontWeight: 600 }}>
@@ -368,12 +480,6 @@ export default function AdminResetPasswordPage() {
                   ชื่อผู้ใช้: {verifiedFullName}
                 </p>
               </div>
-            )}
-
-            {isEmailVerified && (
-              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#16a360", fontWeight: 600 }}>
-                ✓ ยืนยัน OTP สำเร็จแล้ว
-              </p>
             )}
           </Field>
 
@@ -405,7 +511,7 @@ export default function AdminResetPasswordPage() {
           <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(22,163,96,0.06)", border: "1px solid rgba(22,163,96,0.15)", display: "flex", gap: 8, alignItems: "flex-start" }}>
             <span>💡</span>
             <p style={{ margin: 0, fontSize: 12, color: "#4a7c62", lineHeight: 1.6 }}>
-              ตรวจสอบเลขบัตรประชาชนก่อน จากนั้นยืนยันด้วย OTP แล้วกรอกชื่อผู้ใช้งานและรหัสผ่านใหม่
+              กรอกเลขบัตรประชาชนหรืออีเมล จากนั้นเช็คข้อมูลหรือส่ง OTP แล้วยืนยันก่อนเปลี่ยนรหัสผ่าน
             </p>
           </div>
 
@@ -444,6 +550,7 @@ export default function AdminResetPasswordPage() {
         </p>
       </div>
 
+      {/* OTP Modal */}
       {showOtpModal && (
         <div style={{
           position: "fixed", inset: 0, background: "rgba(13,79,46,0.4)",
@@ -458,7 +565,7 @@ export default function AdminResetPasswordPage() {
             <div style={{ textAlign: "center" }}>
               <span style={{ fontSize: 32 }}>✉️</span>
               <h3 style={{ margin: "8px 0 4px", fontSize: 18, color: "#0d4f2e", fontWeight: 700 }}>กรอกรหัสยืนยันตัวตน</h3>
-              <p style={{ margin: 0, fontSize: 13, color: "#6b9e84" }}>รหัส OTP ส่งไปที่ {staffEmail}</p>
+              <p style={{ margin: 0, fontSize: 13, color: "#6b9e84" }}>รหัส OTP ส่งไปที่ {isInputEmail ? form.identifier : staffEmail}</p>
             </div>
 
             <input
