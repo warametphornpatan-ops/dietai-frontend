@@ -1257,14 +1257,6 @@ export default function AdminDashboardPage() {
               <Field label="อีเมล">
                 <SI
                   type="email"
-                  placeholder={editingUser.email || "ไม่มี"}  // ✅ เอา "คงค่าเดิม:" ออก
-                  value={editUserForm.email}
-                  onChange={e => setEditUserForm(p => ({ ...p, email: e.target.value }))}
-                />
-              </Field>
-              <Field label="อีเมล">
-                <SI
-                  type="email"
                   placeholder={`${editingUser.email || "ไม่มี"}`}
                   value={editUserForm.email}
                   onChange={e => setEditUserForm(p => ({ ...p, email: e.target.value }))}
