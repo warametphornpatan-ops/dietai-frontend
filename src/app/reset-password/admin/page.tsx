@@ -59,55 +59,60 @@ function PwInput({ value, onChange, placeholder, autoComplete, error }: {
   );
 }
 
-export default function AdminResetPasswordPage() {
+export default function StaffResetPasswordPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    identifier: "", username: "",
-    newPassword: "", confirmNewPassword: "",
+    identifier: "",
+    username: "",
+    newPassword: "",
+    confirmNewPassword: "",
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // ID Card states
   const [checkingIdCard, setCheckingIdCard] = useState(false);
   const [isIdCardVerified, setIsIdCardVerified] = useState(false);
   const [verifiedFullName, setVerifiedFullName] = useState("");
 
+  // OTP states
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [isEmailVerified, setIsEmailVerified] = useState(false);
-  const [staffEmail, setStaffEmail] = useState("");
+
+  // detect ประเภท input
+  const isInputEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.identifier.trim());
+  const digitsOnly = form.identifier.replace(/\D/g, "");
+  const isInputIdCard13 = !form.identifier.includes("@") && digitsOnly.length === 13;
+  const isVerified = isInputEmail ? isEmailVerified : isInputIdCard13 ? isIdCardVerified : false;
 
   const handleSetValue = (key: string) => (val: string) => {
-    setForm(p => ({ ...p, [key]: val }));
-    setFieldErrors(p => ({ ...p, [key]: "" }));
-
     if (key === "identifier") {
-      setIsIdCardVerified(false);
+      setForm(p => ({ ...p, identifier: val }));
       setIsEmailVerified(false);
+      setIsIdCardVerified(false);
       setVerifiedFullName("");
-      setStaffEmail("");
+    } else {
+      setForm(p => ({ ...p, [key]: val }));
     }
+    setFieldErrors(p => ({ ...p, [key]: "" }));
   };
 
   const pwMatch = form.confirmNewPassword && form.newPassword === form.confirmNewPassword;
-  const isInputIdCard13 = !form.identifier.includes("@") && form.identifier.replace(/\D/g, "").length === 13;
 
+  // ✅ ตรวจสอบบัตรประชาชน
   async function handleVerifyIdCard() {
-    if (!isInputIdCard13) return;
-
-    setCheckingIdCard(true);
-    setFieldErrors(p => ({ ...p, identifier: "" }));
     const result = validateThaiID(form.identifier);
     if (!result.isValid) {
       setFieldErrors(p => ({ ...p, identifier: result.message }));
-      setCheckingIdCard(false);
       return;
     }
-    
-    const digitsOnly = form.identifier.replace(/\D/g, "");
+
+    setCheckingIdCard(true);
+    setFieldErrors(p => ({ ...p, identifier: "" }));
 
     try {
       const res = await fetch(`${API_URL}/api/staff/check-idcard`, {
@@ -119,15 +124,12 @@ export default function AdminResetPasswordPage() {
       if (res.ok) {
         const data = await res.json();
         const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim();
-        setVerifiedFullName(fullName || "ไม่พบชื่อในระบบแต่เลขถูกต้อง");
-        setStaffEmail(data.email || "");
+        setVerifiedFullName(fullName || "พบข้อมูลในระบบ");
         setIsIdCardVerified(true);
+      } else if (res.status === 404) {
+        setFieldErrors(p => ({ ...p, identifier: "ไม่พบเลขบัตรประชาชนนี้ในระบบ" }));
       } else {
-        if (res.status === 404) {
-          setFieldErrors(p => ({ ...p, identifier: "ไม่พบเลขบัตรประชาชนนี้ในระบบ" }));
-        } else {
-          setFieldErrors(p => ({ ...p, identifier: "เกิดข้อผิดพลาดในการตรวจสอบข้อมูล" }));
-        }
+        setFieldErrors(p => ({ ...p, identifier: "เกิดข้อผิดพลาดในการตรวจสอบข้อมูล" }));
       }
     } catch {
       alert("❌ ไม่สามารถเชื่อมต่อระบบตรวจสอบบัตรประชาชนได้");
@@ -136,25 +138,24 @@ export default function AdminResetPasswordPage() {
     }
   }
 
+  // 📧 ส่ง OTP
   async function handleSendOtp() {
-    if (!staffEmail) {
-      alert("❌ ไม่พบอีเมลที่ลงทะเบียน");
+    const emailStr = form.identifier.trim();
+    if (!isInputEmail) {
+      setFieldErrors(p => ({ ...p, identifier: "รูปแบบอีเมลไม่ถูกต้อง" }));
       return;
     }
-
     setSendingOtp(true);
     setFieldErrors(p => ({ ...p, identifier: "" }));
-
     try {
       const { error } = await supabase.auth.signInWithOtp({
-        email: staffEmail,
+        email: emailStr,
         options: { shouldCreateUser: true },
       });
-
       if (error) {
         alert(`❌ ไม่สามารถส่ง OTP ได้: ${error.message}`);
       } else {
-        alert("📩 ส่งรหัส OTP ไปยังอีเมลของคุณแล้ว");
+        alert("📩 ส่งรหัส OTP ไปยังอีเมลของคุณแล้ว โปรดตรวจสอบกล่องข้อความหรือ Junk mail");
         setShowOtpModal(true);
       }
     } catch {
@@ -164,20 +165,19 @@ export default function AdminResetPasswordPage() {
     }
   }
 
+  // 🔢 ยืนยัน OTP
   async function handleVerifyOtp() {
     if (otpCode.trim().length !== 6) {
       alert("กรุณากรอกรหัส OTP ให้ครบ 6 หลัก");
       return;
     }
-
     setVerifyingOtp(true);
     try {
       const { error } = await supabase.auth.verifyOtp({
-        email: staffEmail,
+        email: form.identifier.trim(),
         token: otpCode.trim(),
-        type: "email"
+        type: "email",
       });
-
       if (error) {
         alert(`❌ รหัส OTP ไม่ถูกต้องหรือหมดอายุ: ${error.message}`);
       } else {
@@ -193,38 +193,36 @@ export default function AdminResetPasswordPage() {
     }
   }
 
+  // 💾 Submit
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
 
     const errs: Record<string, string> = {};
-    const digitsOnly = form.identifier.replace(/\D/g, "");
+    let finalIdentifier = form.identifier.trim();
+    const isEmail = finalIdentifier.includes("@");
 
-    if (!form.identifier.trim()) {
-      errs.identifier = "กรุณากรอกเลขบัตรประชาชน";
-    } else if (digitsOnly.length !== 13) {
-      errs.identifier = "เลขบัตรประชาชนต้องมี 13 หลัก";
-    } else if (!isIdCardVerified) {
-      errs.identifier = "กรุณากดปุ่มตรวจสอบเลขบัตรประชาชนให้ผ่านก่อน";
-    } else if (!isEmailVerified) {
-      errs.identifier = "กรุณากดส่งและยืนยันรหัส OTP ให้สำเร็จก่อน";
+    if (!finalIdentifier) {
+      errs.identifier = "กรุณากรอกเลขบัตรประชาชนหรืออีเมล";
+    } else if (isEmail) {
+      if (!isInputEmail) errs.identifier = "รูปแบบอีเมลไม่ถูกต้อง";
+      else if (!isEmailVerified) errs.identifier = "กรุณากดส่งและยืนยันรหัส OTP ให้สำเร็จก่อน";
+    } else {
+      finalIdentifier = digitsOnly;
+      if (finalIdentifier.length !== 13) errs.identifier = "เลขบัตรประชาชนต้องมี 13 หลัก";
+      else if (!isIdCardVerified) errs.identifier = "กรุณากดปุ่มตรวจสอบเลขบัตรประชาชนให้ผ่านก่อน";
     }
 
     if (!form.username.trim()) errs.username = "กรุณากรอกชื่อผู้ใช้งาน (Username)";
-
-    if (!form.newPassword || form.newPassword.length < 6) {
-      errs.newPassword = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
-    }
+    if (!form.newPassword || form.newPassword.length < 6) errs.newPassword = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
     if (form.newPassword !== form.confirmNewPassword) errs.confirmNewPassword = "รหัสผ่านไม่ตรงกัน";
 
-    if (Object.keys(errs).length) {
-      setFieldErrors(errs);
-      return;
-    }
+    if (Object.keys(errs).length) { setFieldErrors(errs); return; }
 
     setLoading(true);
     const payload = {
-      id_card: digitsOnly,
+      identifier: finalIdentifier,
+      is_email: isEmail,
       username: form.username.trim(),
       new_password: form.newPassword,
     };
@@ -241,7 +239,6 @@ export default function AdminResetPasswordPage() {
         router.push("/login");
         return;
       }
-
       switch (res.status) {
         case 404: alert("❌ ไม่พบข้อมูลที่ตรงกับข้อมูลที่ระบุ"); break;
         case 422: alert("❌ รูปแบบข้อมูลไม่ถูกต้อง (422)"); break;
@@ -289,108 +286,102 @@ export default function AdminResetPasswordPage() {
         boxShadow: "0 20px 60px rgba(13,79,46,0.10),0 4px 16px rgba(13,79,46,0.06)",
         position: "relative", zIndex: 1,
       }}>
-
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
-          <Field label="เลขบัตรประชาชน" error={fieldErrors.identifier}>
+          {/* 1. Identifier */}
+          <Field label="เลขบัตรประชาชน หรือ อีเมล" error={fieldErrors.identifier}>
             <div style={{ display: "flex", gap: 8 }}>
               <input
-                type="text" value={form.identifier} placeholder="เลขบัตรประชาชน 13 หลัก"
-                disabled={isIdCardVerified && isEmailVerified}
+                type="text"
+                value={form.identifier}
+                placeholder="เลขบัตรประชาชน 13 หลัก หรือ email@domain.com"
+                disabled={isVerified}
                 onChange={e => handleSetValue("identifier")(e.target.value)}
                 style={{
-                  ...inputBase,
-                  flex: 1,
-                  borderColor: fieldErrors.identifier ? "#fca5a5" : "#c8e8d8",
-                  background: (isIdCardVerified && isEmailVerified) ? "#e8f5f0" : "#f4fbf7"
+                  ...inputBase, flex: 1,
+                  borderColor: fieldErrors.identifier ? "#fca5a5" : isVerified ? "#16a360" : "#c8e8d8",
+                  background: isVerified ? "#e8f5f0" : "#f4fbf7",
                 }}
                 onFocus={e => e.currentTarget.style.borderColor = "#16a360"}
-                onBlur={e => e.currentTarget.style.borderColor = fieldErrors.identifier ? "#fca5a5" : "#c8e8d8"}
+                onBlur={e => e.currentTarget.style.borderColor = fieldErrors.identifier ? "#fca5a5" : isVerified ? "#16a360" : "#c8e8d8"}
               />
 
-              {isInputIdCard13 && !isIdCardVerified && (
-                <button
-                  type="button"
-                  onClick={handleVerifyIdCard}
-                  disabled={checkingIdCard}
-                  style={{
-                    padding: "0 14px", borderRadius: 12, border: "none",
-                    background: checkingIdCard ? "#fca5a5" : "#ef4444",
-                    color: "#fff", fontSize: 13, fontWeight: 600,
-                    cursor: checkingIdCard ? "not-allowed" : "pointer",
-                    whiteSpace: "nowrap", transition: "background 0.2s"
-                  }}
-                >
-                  {checkingIdCard ? "กำลังตรวจ..." : "ตรวจสอบ"}
-                </button>
-              )}
-
-              {isInputIdCard13 && isIdCardVerified && !isEmailVerified && (
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  disabled={sendingOtp}
+              {/* ปุ่ม OTP สำหรับ email */}
+              {isInputEmail && !isEmailVerified && (
+                <button type="button" onClick={handleSendOtp} disabled={sendingOtp}
                   style={{
                     padding: "0 14px", borderRadius: 12, border: "none",
                     background: sendingOtp ? "#a7d4bc" : "#0d4f2e",
                     color: "#fff", fontSize: 13, fontWeight: 600,
                     cursor: sendingOtp ? "not-allowed" : "pointer",
-                    whiteSpace: "nowrap", transition: "background 0.2s"
-                  }}
-                >
-                  {sendingOtp ? "ส่ง OTP..." : "ส่ง OTP"}
+                    whiteSpace: "nowrap", transition: "background 0.2s",
+                  }}>
+                  {sendingOtp ? "กำลังส่ง..." : "ส่ง OTP"}
                 </button>
               )}
 
-              {isInputIdCard13 && isIdCardVerified && isEmailVerified && (
-                <button
-                  type="button"
-                  disabled
+              {/* ปุ่มตรวจสอบบัตรประชาชน */}
+              {isInputIdCard13 && !isIdCardVerified && (
+                <button type="button" onClick={handleVerifyIdCard} disabled={checkingIdCard}
                   style={{
                     padding: "0 14px", borderRadius: 12, border: "none",
-                    background: "#16a360",
+                    background: checkingIdCard ? "#fca5a5" : "#ef4444",
                     color: "#fff", fontSize: 13, fontWeight: 600,
-                    cursor: "default",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  ตรวจสอบแล้ว
+                    cursor: checkingIdCard ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap", transition: "background 0.2s",
+                  }}>
+                  {checkingIdCard ? "กำลังตรวจ..." : "ตรวจสอบ"}
+                </button>
+              )}
+
+              {/* ปุ่มเขียวหลังผ่าน */}
+              {isVerified && (
+                <button type="button" disabled
+                  style={{
+                    padding: "0 14px", borderRadius: 12, border: "none",
+                    background: "#16a360", color: "#fff", fontSize: 13, fontWeight: 600,
+                    cursor: "default", whiteSpace: "nowrap",
+                  }}>
+                  ✓ ยืนยันแล้ว
                 </button>
               )}
             </div>
 
-            {isIdCardVerified && (
-              <div style={{ marginTop: 8, padding: "10px 12px", borderRadius: 10, background: "#e8f5f0", border: "1px solid #a3e635" }}>
-                <p style={{ margin: 0, fontSize: 13, color: "#15803d", fontWeight: 600 }}>
-                  ✓ ตรวจสอบเลขบัตรประชาชนถูกต้อง
-                </p>
-                <p style={{ margin: "2px 0 0", fontSize: 14, color: "#0d4f2e", fontWeight: 700 }}>
-                  ชื่อผู้ใช้: {verifiedFullName}
-                </p>
-              </div>
-            )}
-
             {isEmailVerified && (
               <p style={{ margin: "4px 0 0", fontSize: 13, color: "#16a360", fontWeight: 600 }}>
-                ✓ ยืนยัน OTP สำเร็จแล้ว
+                ✓ ยืนยันอีเมลด้วยรหัส OTP เรียบร้อยแล้ว
               </p>
+            )}
+
+            {isIdCardVerified && (
+              <div style={{ marginTop: 8, padding: "10px 12px", borderRadius: 10, background: "#e8f5f0", border: "1px solid rgba(22,163,96,0.3)" }}>
+                <p style={{ margin: 0, fontSize: 13, color: "#15803d", fontWeight: 600 }}>✓ ตรวจสอบเลขบัตรประชาชนถูกต้อง</p>
+                <p style={{ margin: "2px 0 0", fontSize: 14, color: "#0d4f2e", fontWeight: 700 }}>ชื่อผู้ใช้: {verifiedFullName}</p>
+              </div>
             )}
           </Field>
 
+          {/* 2. Username */}
           <Field label="ชื่อผู้ใช้งาน (Username)" error={fieldErrors.username}>
-            <input type="text" value={form.username} placeholder="กรอกชื่อผู้ใช้งานของคุณ"
+            <input
+              type="text"
+              value={form.username}
+              placeholder="กรอกชื่อผู้ใช้งานของคุณ"
               onChange={e => handleSetValue("username")(e.target.value)}
               style={{ ...inputBase, borderColor: fieldErrors.username ? "#fca5a5" : "#c8e8d8" }}
               onFocus={e => e.currentTarget.style.borderColor = "#16a360"}
-              onBlur={e => e.currentTarget.style.borderColor = fieldErrors.username ? "#fca5a5" : "#c8e8d8"} />
+              onBlur={e => e.currentTarget.style.borderColor = fieldErrors.username ? "#fca5a5" : "#c8e8d8"}
+            />
           </Field>
 
           <div style={{ borderTop: "1px dashed rgba(22,163,97,0.2)" }} />
 
+          {/* 3. รหัสผ่านใหม่ */}
           <Field label="รหัสผ่านใหม่" hint="(อย่างน้อย 6 ตัวอักษร)" error={fieldErrors.newPassword}>
             <PwInput value={form.newPassword} onChange={handleSetValue("newPassword")} placeholder="รหัสผ่านใหม่" autoComplete="new-password" error={!!fieldErrors.newPassword} />
           </Field>
 
+          {/* 4. ยืนยันรหัสผ่าน */}
           <Field label="ยืนยันรหัสผ่านใหม่" error={fieldErrors.confirmNewPassword}>
             <div style={{ position: "relative" }}>
               <PwInput value={form.confirmNewPassword} onChange={handleSetValue("confirmNewPassword")} placeholder="กรอกรหัสผ่านอีกครั้ง" autoComplete="new-password" error={!!fieldErrors.confirmNewPassword} />
@@ -402,13 +393,15 @@ export default function AdminResetPasswordPage() {
             </div>
           </Field>
 
+          {/* Hint */}
           <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(22,163,96,0.06)", border: "1px solid rgba(22,163,96,0.15)", display: "flex", gap: 8, alignItems: "flex-start" }}>
             <span>💡</span>
             <p style={{ margin: 0, fontSize: 12, color: "#4a7c62", lineHeight: 1.6 }}>
-              ตรวจสอบเลขบัตรประชาชนก่อน จากนั้นยืนยันด้วย OTP แล้วกรอกชื่อผู้ใช้งานและรหัสผ่านใหม่
+              ระบบจะตรวจสอบข้อมูล Username และเลขบัตรประชาชนหรืออีเมลที่ลงทะเบียนไว้ก่อนเปลี่ยนรหัสผ่านสำเร็จ
             </p>
           </div>
 
+          {/* Submit */}
           <button type="submit" disabled={loading}
             style={{
               width: "100%", padding: 14, marginTop: 2, borderRadius: 14, border: "none",
@@ -436,58 +429,49 @@ export default function AdminResetPasswordPage() {
       </div>
 
       <div style={{ marginTop: "24px", textAlign: "center", fontSize: "12px", color: "#6b9e84" }}>
-        <p className="text-xs font-medium" style={{ color: '#4a7c62' }}>
+        <p className="text-xs font-medium" style={{ color: "#4a7c62" }}>
           Copyright © 2026 Information Technology for Industry
         </p>
-        <p className="text-xs mt-0.5" style={{ color: '#8aab9a' }}>
+        <p className="text-xs mt-0.5" style={{ color: "#8aab9a" }}>
           King Mongkut&apos;s University of Technology North Bangkok
         </p>
       </div>
 
+      {/* OTP Modal */}
       {showOtpModal && (
         <div style={{
           position: "fixed", inset: 0, background: "rgba(13,79,46,0.4)",
           backdropFilter: "blur(4px)", display: "flex", alignItems: "center",
-          justifyContent: "center", zIndex: 100, padding: 16
+          justifyContent: "center", zIndex: 100, padding: 16,
         }}>
           <div style={{
             background: "#fff", width: "100%", maxWidth: 360,
             borderRadius: 20, padding: 24, boxShadow: "0 20px 50px rgba(0,0,0,0.15)",
-            display: "flex", flexDirection: "column", gap: 16
+            display: "flex", flexDirection: "column", gap: 16,
           }}>
             <div style={{ textAlign: "center" }}>
               <span style={{ fontSize: 32 }}>✉️</span>
               <h3 style={{ margin: "8px 0 4px", fontSize: 18, color: "#0d4f2e", fontWeight: 700 }}>กรอกรหัสยืนยันตัวตน</h3>
-              <p style={{ margin: 0, fontSize: 13, color: "#6b9e84" }}>รหัส OTP ส่งไปที่ {staffEmail}</p>
+              <p style={{ margin: 0, fontSize: 13, color: "#6b9e84" }}>รหัส OTP ส่งไปที่ {form.identifier}</p>
             </div>
-
             <input
-              type="text"
-              maxLength={6}
-              value={otpCode}
+              type="text" maxLength={6} value={otpCode}
               onChange={e => setOtpCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="รหัสตัวเลข 6 หลัก"
+              placeholder="รหัสตัวเลข 6 หลัก" inputMode="numeric"
               style={{ ...inputBase, textAlign: "center", fontSize: 20, letterSpacing: "0.3em", fontWeight: "bold" }}
             />
-
             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-              <button
-                type="button"
-                onClick={() => { setShowOtpModal(false); setOtpCode(""); }}
-                style={{ flex: 1, padding: 12, borderRadius: 12, border: "1px solid #c8e8d8", background: "#fff", color: "#6b9e84", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
-              >
+              <button type="button" onClick={() => { setShowOtpModal(false); setOtpCode(""); }}
+                style={{ flex: 1, padding: 12, borderRadius: 12, border: "1px solid #c8e8d8", background: "#fff", color: "#6b9e84", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
                 ยกเลิก
               </button>
-              <button
-                type="button"
-                onClick={handleVerifyOtp}
-                disabled={verifyingOtp || otpCode.length !== 6}
+              <button type="button" onClick={handleVerifyOtp} disabled={verifyingOtp || otpCode.length !== 6}
                 style={{
                   flex: 1, padding: 12, borderRadius: 12, border: "none",
                   background: verifyingOtp || otpCode.length !== 6 ? "#a7d4bc" : "#16a360",
-                  color: "#fff", fontSize: 14, fontWeight: 600, cursor: verifyingOtp || otpCode.length !== 6 ? "not-allowed" : "pointer"
-                }}
-              >
+                  color: "#fff", fontSize: 14, fontWeight: 600,
+                  cursor: verifyingOtp || otpCode.length !== 6 ? "not-allowed" : "pointer",
+                }}>
                 {verifyingOtp ? "กำลังตรวจ..." : "ยืนยันรหัส"}
               </button>
             </div>
