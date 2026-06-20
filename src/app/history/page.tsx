@@ -105,7 +105,7 @@ export default function DiaryPage() {
         return;
       }
 
-      const res = await fetch(`${API_BASE}/foods/log`, {
+      const res = await fetch(`${API_BASE}/api/foods/log`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token}`,
