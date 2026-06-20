@@ -116,7 +116,7 @@ export default function AdminRegisterPage() {
     if (!code) { setFieldErrors(p => ({ ...p, org_code: "กรุณากรอกรหัสหน่วยงานก่อน" })); return; }
     setCheckingOrg(true); setOrgStatus("idle"); setOrgName("");
     try {
-      const res = await fetch(`${API_URL}/organizations/${code}`);
+      const res = await fetch(`${API_URL}/api/organizations/${code}`);
       if (!res.ok) { setOrgStatus("error"); setOrgName("ไม่พบรหัสหน่วยงานนี้ในระบบ"); return; }
       const data = await res.json();
       if (data.name) { setOrgStatus("success"); setOrgName(data.name); }
