@@ -31,7 +31,7 @@ interface FoodFromDB {
     image_url: string;
 }
 
-// ✅ สร้าง Interface กลางเพื่อหลีกเลี่ยงการใช้ 'any' ครอบคลุมฟิลด์ทั้งหมดที่ Backend อาจจะส่งมา
+// ✅ สร้าง Interface กลาง ครอบคลุมฟิลด์ทั้งหมดที่ Backend อาจจะส่งมา
 interface ApiFoodItem {
     MenuID?: number;
     menu_id?: number;
@@ -48,9 +48,12 @@ interface ApiFoodItem {
     image_url?: string;
 }
 
-// ✅ Interface สำหรับรับ Response จาก Next.js API
-interface ApiResponse {
+// ✅ Interface สำหรับรับ Response จาก API รองรับทั้งรูปแบบเก่าและใหม่
+interface BackendRecommendationResponse {
     success?: boolean;
+    bmi?: number;
+    category?: string;
+    advice?: string;
     data?: ApiFoodItem[];
     recommended_dishes?: ApiFoodItem[];
     beverages?: ApiFoodItem[];
@@ -94,17 +97,20 @@ const getBmiRemark = (bmi: number) => {
     }
 };
 
-// ✅ ฟังก์ชันแปลงข้อมูล โดยใช้ Interface ที่กำหนดไว้ (ไม่มีการใช้ any)
+// ✅ ฟังก์ชันแปลงข้อมูลให้อยู่ในรูปแบบเดียวที่ Frontend ต้องการ
 const formatFoodData = (item: ApiFoodItem): FoodFromDB => {
-    // พยายามดึงชื่อจากหลายๆ ฟิลด์ที่อาจจะเป็นไปได้
     const foodName = item.ThaiName || item.name || item.food_thai || "ไม่มีชื่อเมนู";
     const foodCalories = item.Calories || item.calories || 0;
     let foodCategory = item.Category || item.category || "อาหารคาว";
 
-    // จัดกลุ่มหมวดหมู่ให้ตรงกับ Tab ใน Frontend เผื่อ Backend ส่งมาผิด
-    if (foodCategory.includes("ผลไม้")) foodCategory = "ผลไม้";
-    else if (foodCategory.includes("เครื่องดื่ม")) foodCategory = "เครื่องดื่ม";
-    else foodCategory = "อาหารคาว";
+    // จัดกลุ่มหมวดหมู่ให้ตรงกับ Tab ใน Frontend
+    if (foodCategory.includes("ผลไม้")) {
+        foodCategory = "ผลไม้";
+    } else if (foodCategory.includes("เครื่องดื่ม") || foodCategory.includes("Beverage")) {
+        foodCategory = "เครื่องดื่ม";
+    } else {
+        foodCategory = "อาหารคาว";
+    }
 
     return {
         name: foodName,
@@ -130,55 +136,53 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
     useEffect(() => {
         const fetchRecommendedFoods = async (): Promise<void> => {
             if (!user?.id) {
+                console.log("⏳ Waiting for user data...");
                 setLoading(false);
                 return;
             }
 
             setLoading(true);
             try {
-                // ส่งค่า bmiStatus ไปด้วยเพื่อให้ API คัดกรองเมนูให้
-                let bmiStatus = "normal";
-                if (bmi < 18.5) bmiStatus = "under";
-                else if (bmi >= 18.5 && bmi < 23.0) bmiStatus = "normal";
-                else if (bmi >= 23.0 && bmi < 25.0) bmiStatus = "over";
-                else if (bmi >= 25.0) bmiStatus = "severe-over";
-
-                const response = await fetch(`/api/foods/recommendations?bmiStatus=${bmiStatus}`);
+                console.log("🔵 Fetching from /api/foods/recommendations...");
+                
+                const response = await fetch(`/api/foods/recommendations`);
+                console.log(`📊 Response status: ${response.status}`);
                 
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`❌ HTTP Error ${response.status}: ${errorText}`);
                     setFoods([]);
                     setLoading(false);
                     return;
                 }
 
-                // รับ Response และใช้ Interface ที่เรากำหนดไว้
-                const result = (await response.json()) as ApiResponse;
-                
+                const result: BackendRecommendationResponse = await response.json();
+                console.log("✅ Recommendations loaded:", result);
+
                 let rawFoods: ApiFoodItem[] = [];
 
-                // ✅ เช็คทุกกรณี ไม่ว่า API จะส่งมาแบบไหน ข้อมูลก็ไม่พัง
+                // ✅ ตรวจสอบโครงสร้างของข้อมูลที่ Backend ส่งมาทุกรูปแบบเพื่อป้องกันบั๊ก
                 if (Array.isArray(result.data)) {
-                    // กรณีส่งมาเป็น { success: true, data: [...] } แบบ API ล่าสุดของเรา
                     rawFoods = result.data;
                 } else if (result.recommended_dishes || result.beverages) {
-                    // กรณีส่งมาแบบเก่าแยกก้อนกัน
                     const dishes = Array.isArray(result.recommended_dishes) ? result.recommended_dishes : [];
                     const drinks = Array.isArray(result.beverages) ? result.beverages : [];
                     rawFoods = [...dishes, ...drinks];
                 } else if (Array.isArray(result)) {
-                    // กรณียิงมาเป็น Array ตรงๆ
-                    rawFoods = result as ApiFoodItem[];
+                    rawFoods = result as unknown as ApiFoodItem[];
                 }
 
-                // แปลงข้อมูลและเก็บลง State
                 if (rawFoods.length > 0) {
                     const allFoods: FoodFromDB[] = rawFoods.map(formatFoodData);
                     setFoods(allFoods);
+                    console.log(`✅ Total foods loaded: ${allFoods.length}`);
                 } else {
+                    console.warn("⚠️ No valid food data found in the response payload");
                     setFoods([]);
                 }
+
             } catch (error) {
-                console.error("❌ Error fetching foods:", error);
+                console.error("❌ Error fetching recommended foods:", error);
                 setFoods([]);
             } finally {
                 setLoading(false);
@@ -188,12 +192,15 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
         if (bmi > 0) {
             fetchRecommendedFoods();
         } else {
+            console.log("⏳ Waiting for BMI data...");
             setLoading(false);
         }
     }, [bmi, user?.id]);
 
+    // ✅ Filter by activeCategory
     let filteredFoods: FoodFromDB[] = foods.filter(food => food.category === activeCategory);
 
+    // ✅ Filter by allergies
     if (user?.health_info && user.health_info.trim() !== "") {
         const allergicKeywords: string[] = user.health_info
             .toLowerCase()
@@ -252,6 +259,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                     </div>
                 </div>
 
+                {/* BMI Remark Box */}
                 {remark && (
                     <div className={`mt-4 p-3 rounded-xl border border-white/50 shadow-sm flex gap-3 items-start text-sm leading-relaxed ${remark.bgColor} ${remark.textColor}`}>
                         <span className="text-lg">{remark.icon}</span>
@@ -261,6 +269,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                     </div>
                 )}
 
+                {/* Allergy Warning Box */}
                 {user?.health_info && user.health_info.trim() !== "" && (
                     <div className="mt-3 p-3 rounded-xl border border-rose-100 bg-rose-50/70 text-rose-700 shadow-sm flex gap-3 items-start text-sm leading-relaxed">
                         <span className="text-lg">🚫</span>
@@ -271,9 +280,14 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                         </div>
                     </div>
                 )}
+
+                <p className="text-[10px] text-gray-400 font-normal mt-2.5 italic pl-1">
+                    *หมายเหตุ: C = Carbohydrates (คาร์โบไฮเดรต) • P = Protein (โปรตีน) • F = Fat (ไขมัน)
+                </p>
             </CardHeader>
 
             <CardContent className="pt-4 flex flex-col gap-6">
+                {/* Food List */}
                 <div>
                     {loading ? (
                         <div className="text-center py-8 text-gray-400 text-sm animate-pulse">
@@ -295,6 +309,9 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                                                 (e.target as HTMLImageElement).src = "/foods/default-food.jpg";
                                             }}
                                         />
+                                        <span className="select-none">
+                                            {food.category === "อาหารคาว" ? "🍱" : food.category === "ผลไม้" ? "🍎" : "🥤"}
+                                        </span>
                                     </div>
 
                                     <div className="flex flex-col justify-center flex-1 min-w-0">
@@ -312,6 +329,38 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                             ไม่มีรายการในหมวดหมู่นี้ตามข้อจำกัดโภชนาการของคุณ
                         </div>
                     )}
+                </div>
+
+                {/* Medical References */}
+                <div className="mt-2 pt-4 border-t border-gray-100">
+                    <h5 className="text-xs font-semibold text-gray-500 mb-3 flex items-center gap-1.5">
+                        🩺 แหล่งอ้างอิงข้อมูลโภชนาการทางการแพทย์
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+                        <div className="bg-gray-50/60 rounded-xl p-2.5 border border-gray-100">
+                            <span className="font-bold text-blue-600 block mb-1">เคล็ดลับเลือกกินแป้งและน้ำตาลเพื่อสุขภาพดี</span>
+                            <a
+                                href="https://n9.cl/eqfpd"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-gray-600 hover:text-emerald-600 font-medium line-clamp-1 hover:underline"
+                            >
+                                🔗 &quot;คาร์บดี&quot; เคล็ดลับเลือกกินแป้งและน้ำตาลเพื่อสุขภาพดี
+                            </a>
+                        </div>
+
+                        <div className="md:col-span-2 bg-gray-50/60 rounded-xl p-2.5 border border-gray-100">
+                            <span className="font-bold text-emerald-600 block mb-1">เกณฑ์มาตรฐาน BMI และการดูแลสุขภาพทั่วไป</span>
+                            <a
+                                href="https://ddc.moph.go.th/uploads/publish/1064820201022081932.pdf"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-gray-600 hover:text-emerald-600 font-medium line-clamp-1 hover:underline"
+                            >
+                                🔗 รู้ตัวเลขรู้ความเสี่ยงสุขภาพ
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </CardContent>
         </Card>
