@@ -91,10 +91,7 @@ export default function UserResetPasswordPage() {
 
   const handleSetValue = (key: string) => (val: string) => {
     if (key === "identifier") {
-      // ถ้าไม่มี @ ให้กรองเฉพาะตัวเลข (บัตรประชาชน) แต่ถ้ามี @ ให้พิมพ์ได้ปกติ (email)
-      const hasAt = val.includes("@");
-      const cleaned = hasAt ? val : val.replace(/\D/g, "").slice(0, 13);
-      setForm(p => ({ ...p, identifier: cleaned }));
+      setForm(p => ({ ...p, identifier: val }));
       setIsEmailVerified(false);
       setIsIdCardVerified(false);
       setVerifiedFullName("");
