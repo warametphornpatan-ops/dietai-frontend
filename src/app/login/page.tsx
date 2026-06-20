@@ -253,7 +253,7 @@ export default function LoginPage() {
       } else {
         // Try doctor first
         // ✅ FIXED: API_URL already has /api, so just use /doctor/login
-        let res = await fetch(`${API_URL}/api/doctor/login`, {
+        let res = await fetch(`${API_URL}/api/doctors/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password, org_code: orgCode }),
