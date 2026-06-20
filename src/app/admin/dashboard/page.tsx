@@ -953,13 +953,13 @@ export default function AdminDashboardPage() {
                                   onClick={() => handleApproveDoctorApplication(app)}
                                   disabled={isApproving || isRejecting}
                                   style={{ padding: "5px 12px", borderRadius: 7, border: "none", background: isApproving ? "#cbd5e1" : "#10b981", color: "#fff", fontSize: 12, fontWeight: 600, cursor: isApproving || isRejecting ? "not-allowed" : "pointer", opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.15s" }}>
-                                  {isApproving ? "..." : "✅"}
+                                  {isApproving ? "..." : "อนุมัติ"}
                                 </button>
                                 <button
                                   onClick={() => handleRejectDoctorApplication(app)}
                                   disabled={isApproving || isRejecting}
                                   style={{ padding: "5px 12px", borderRadius: 7, border: "none", background: isRejecting ? "#cbd5e1" : "#ef4444", color: "#fff", fontSize: 12, fontWeight: 600, cursor: isApproving || isRejecting ? "not-allowed" : "pointer", opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.15s" }}>
-                                  {isRejecting ? "..." : "❌"}
+                                  {isRejecting ? "..." : "ปฏิเสธ"}
                                 </button>
                               </div>
                             </td>
