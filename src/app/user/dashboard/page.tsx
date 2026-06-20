@@ -172,8 +172,15 @@ export default function HomePage() {
                     setUser(data);
                     setTargetCal(data.target_calories ?? 0);
 
-                    // 2. ✅ ดึงข้อมูล nutrition จาก /foods/summary (แทน /foods/today)
-                    const nutritionRes = await fetch(`${API_BASE}/api/foods/today/${user?.id}`, {
+                    // 2. ✅ ดึงข้อมูล nutrition จาก /api/foods/today
+                    // ✅ เพิ่ม null check สำหรับ user.id
+                    if (!data?.id) {
+                        console.warn("⚠️ User ID not found");
+                        setLoading(false);
+                        return;
+                    }
+
+                    const nutritionRes = await fetch(`${API_BASE}/api/foods/today/${data.id}`, {
                         headers: { Authorization: `Bearer ${token}` },
                         signal: controller.signal,
                     });
