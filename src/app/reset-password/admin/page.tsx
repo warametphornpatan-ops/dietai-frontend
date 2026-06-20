@@ -115,7 +115,7 @@ export default function StaffResetPasswordPage() {
     setFieldErrors(p => ({ ...p, identifier: "" }));
 
     try {
-      const res = await fetch(`${API_URL}/api/staff/check-idcard`, {
+      const res = await fetch(`${API_URL}/api/staff/check-id-card`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id_card: digitsOnly }),
