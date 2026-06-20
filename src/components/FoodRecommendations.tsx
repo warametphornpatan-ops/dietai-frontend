@@ -194,10 +194,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                         <span className="text-lg">🚫</span>
                         <div>
                             <p className="font-bold mb-0.5">
-                                ⚠️ การแพ้อาหารของคุณ:{" "}
-                                <span className="font-extrabold text-rose-800">
-                                    {user.health_info}
-                                </span>
+                                ⚠️ การแพ้อาหารของคุณ: <span className="font-extrabold text-rose-800">{user.health_info}</span>
                             </p>
                         </div>
                     </div>
@@ -227,7 +224,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                                             src={food.image_url || "/foods/default-food.jpg"}
                                             alt={food.name}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform absolute inset-0 z-10"
-                                            onError={(e) => {
+                                            onError={() => {
                                                 console.log(`❌ Image not found: ${food.image_url}`);
                                             }}
                                         />
@@ -267,7 +264,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                                 rel="noopener noreferrer"
                                 className="text-gray-600 hover:text-emerald-600 font-medium line-clamp-1 hover:underline"
                             >
-                                🔗 "คาร์บดี" เคล็ดลับเลือกกินแป้งและน้ำตาลเพื่อสุขภาพดี
+                                🔗 &quot;คาร์บดี&quot; เคล็ดลับเลือกกินแป้งและน้ำตาลเพื่อสุขภาพดี
                             </a>
                         </div>
 
