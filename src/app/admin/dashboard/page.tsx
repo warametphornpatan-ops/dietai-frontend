@@ -27,7 +27,7 @@ type UserRow = {
 type SupportRequestRow = {
   id: number;
   contact_info: string;
-  name: string; 
+  name: string;
   details: string;
   created_at: string;
   status: "pending" | "resolved";
@@ -167,6 +167,25 @@ function Field({ label, hint, required: req, children }: {
   );
 }
 
+// ✅ Thai ID checksum validation
+function validateThaiIDRealtime(id: string): { status: "idle" | "ok" | "error"; message: string } {
+  const digits = id.replace(/\D/g, "");
+  if (digits.length === 0) return { status: "idle", message: "" };
+  if (digits.length < 13) return { status: "error", message: "กรุณากรอกเลขบัตรให้ครบ 13 หลัก" };
+
+  // Luhn-like checksum for Thai national ID
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(digits[i]) * (13 - i);
+  }
+  const check = (11 - (sum % 11)) % 10;
+  if (check === parseInt(digits[12])) {
+    return { status: "ok", message: "✅ เลขบัตรประชาชนถูกต้อง" };
+  } else {
+    return { status: "error", message: "❌ เลขบัตรประชาชนไม่ถูกต้อง" };
+  }
+}
+
 export default function AdminDashboardPage() {
   const [staffList, setStaffList] = useState<StaffRow[]>([]);
   const [allUsers, setAllUsers] = useState<UserRow[]>([]);
@@ -185,6 +204,9 @@ export default function AdminDashboardPage() {
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "ok" | "error">("idle");
   const [usernameErrorDetail, setUsernameErrorDetail] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // ✅ Real-time citizen ID validation state
+  const [citizenIdValidation, setCitizenIdValidation] = useState<{ status: "idle" | "ok" | "error"; message: string }>({ status: "idle", message: "" });
 
   const [form, setForm] = useState<AdminForm>({
     first_name: "",
@@ -231,6 +253,7 @@ export default function AdminDashboardPage() {
 
   async function fetchAdminProfile() {
     try {
+      // ✅ /auth/me ใช้ path ตรงๆ ไม่มี /api (define ใน main.py โดยตรง)
       const res = await fetch(`${API_URL}/auth/me`, { headers: getAuthHeaders() });
       if (res.ok) {
         const adminData: AdminResponse = await res.json();
@@ -259,7 +282,8 @@ export default function AdminDashboardPage() {
 
   async function fetchOrgName(code: string) {
     try {
-      const res = await fetch(`${API_URL}/organizations/${code}`, { headers: getAuthHeaders() });
+      // ✅ เพิ่ม /api
+      const res = await fetch(`${API_URL}/api/organizations/${code}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const d: OrgResponse = await res.json();
         setAdminOrgName(d.name);
@@ -271,9 +295,10 @@ export default function AdminDashboardPage() {
 
   async function fetchAllStaff(orgCode: string) {
     try {
+      // ✅ เพิ่ม /api
       const [adminsRes, doctorsRes] = await Promise.all([
-        fetch(`${API_URL}/admins/list?org_code=${orgCode}`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/admins/doctors?org_code=${orgCode}`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/api/admins/list?org_code=${orgCode}`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/api/admins/doctors?org_code=${orgCode}`, { headers: getAuthHeaders() }),
       ]);
 
       const adminsData: AdminsListResponse = adminsRes.ok ? await adminsRes.json() : { admins: [] };
@@ -309,7 +334,8 @@ export default function AdminDashboardPage() {
 
   async function fetchAllUsersData(orgCode: string) {
     try {
-      const res = await fetch(`${API_URL}/admins/list-all-users`, { headers: getAuthHeaders() });
+      // ✅ เพิ่ม /api
+      const res = await fetch(`${API_URL}/api/admins/list-all-users`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data: UsersListResponse = await res.json();
         setAllUsers(data.users || []);
@@ -332,7 +358,8 @@ export default function AdminDashboardPage() {
 
   async function fetchSupportRequests(orgCode: string) {
     try {
-      const res = await fetch(`${API_URL}/admins/support-requests?org_code=${orgCode}`, { headers: getAuthHeaders() });
+      // ✅ เพิ่ม /api
+      const res = await fetch(`${API_URL}/api/admins/support-requests?org_code=${orgCode}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data: SupportRequestsResponse = await res.json();
         setSupportRequests(data.requests || []);
@@ -347,7 +374,8 @@ export default function AdminDashboardPage() {
 
     setResolvingRequestId(requestId);
     try {
-      const res = await fetch(`${API_URL}/admins/support-requests/${requestId}/resolve`, {
+      // ✅ เพิ่ม /api
+      const res = await fetch(`${API_URL}/api/admins/support-requests/${requestId}/resolve`, {
         method: "PATCH",
         headers: getAuthHeaders(),
       });
@@ -411,7 +439,8 @@ export default function AdminDashboardPage() {
     setUsernameStatus("idle");
     setUsernameErrorDetail("");
     try {
-      const res = await fetch(`${API_URL}/admins/doctors/check-username?username=${username}`, { headers: getAuthHeaders() });
+      // ✅ เพิ่ม /api
+      const res = await fetch(`${API_URL}/api/admins/doctors/check-username?username=${username}`, { headers: getAuthHeaders() });
       const data: { is_available?: boolean; detail?: string } = await res.json();
       if (res.ok && data.is_available === true) {
         setUsernameStatus("ok");
@@ -439,6 +468,10 @@ export default function AdminDashboardPage() {
       alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
       return;
     }
+    if (citizenIdValidation.status !== "ok") {
+      alert("กรุณากรอกเลขบัตรประชาชนให้ถูกต้องก่อน");
+      return;
+    }
     if (!form.email) {
       alert("กรุณากรอกอีเมล");
       return;
@@ -454,7 +487,8 @@ export default function AdminDashboardPage() {
     if (loading) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/admins/register`, {
+      // ✅ เพิ่ม /api
+      const res = await fetch(`${API_URL}/api/admins/register`, {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
@@ -474,13 +508,13 @@ export default function AdminDashboardPage() {
       alert("✅ เพิ่มผู้ดูแลระบบสำเร็จ! ระบบได้ส่งอีเมลคำเชิญให้ตั้งรหัสผ่านเรียบร้อยแล้ว");
       setForm({ first_name: "", last_name: "", citizen_id: "", username: "", email: "" });
       setFieldErrors({});
+      setCitizenIdValidation({ status: "idle", message: "" });
       setUsernameStatus("idle");
       setUsernameErrorDetail("");
       fetchAllStaff(adminOrgCode);
     } catch {
       alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
-    }
-    finally {
+    } finally {
       setLoading(false);
     }
   }
@@ -510,7 +544,8 @@ export default function AdminDashboardPage() {
 
     setEditStaffLoading(true);
     try {
-      const res = await fetch(`${API_URL}/admins/doctors/${editingStaff.id}`, {
+      // ✅ เพิ่ม /api
+      const res = await fetch(`${API_URL}/api/admins/doctors/${editingStaff.id}`, {
         method: "PUT",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
@@ -563,7 +598,8 @@ export default function AdminDashboardPage() {
 
     setEditUserLoading(true);
     try {
-      const res = await fetch(`${API_URL}/users/${editingUser.id}`, {
+      // ✅ เพิ่ม /api
+      const res = await fetch(`${API_URL}/api/users/${editingUser.id}`, {
         method: "PUT",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
@@ -606,7 +642,8 @@ export default function AdminDashboardPage() {
 
     setAdminProfileLoading(true);
     try {
-      const res = await fetch(`${API_URL}/admins/profile/${adminId}`, {
+      // ✅ เพิ่ม /api
+      const res = await fetch(`${API_URL}/api/admins/profile/${adminId}`, {
         method: "PATCH",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
@@ -641,9 +678,10 @@ export default function AdminDashboardPage() {
 
     if (!confirm(`ยืนยันลบ "${row.first_name} ${row.last_name}" ออกจากระบบ?`)) return;
 
+    // ✅ เพิ่ม /api
     const url = row.role === "admin"
-      ? `${API_URL}/admins/${row.id}`
-      : `${API_URL}/admins/doctors/${row.id}`;
+      ? `${API_URL}/api/admins/${row.id}`
+      : `${API_URL}/api/admins/doctors/${row.id}`;
 
     try {
       const res = await fetch(url, { method: "DELETE", headers: getAuthHeaders() });
@@ -662,7 +700,8 @@ export default function AdminDashboardPage() {
     if (!confirm(`ยืนยันลบ "${user.name}" ออกจากระบบ?`)) return;
 
     try {
-      const res = await fetch(`${API_URL}/users/${user.id}`, {
+      // ✅ เพิ่ม /api
+      const res = await fetch(`${API_URL}/api/users/${user.id}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
@@ -778,19 +817,47 @@ export default function AdminDashboardPage() {
                   <SI required placeholder="นามสกุล" value={form.last_name} onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))} />
                 </Field>
               </div>
+
+              {/* ✅ เลขบัตรประชาชน + Real-time validation */}
               <Field label="เลขบัตรประชาชน" required>
-                <SI required maxLength={13} placeholder="13 หลัก" inputMode="numeric"
+                <SI
+                  required
+                  maxLength={13}
+                  placeholder="13 หลัก"
+                  inputMode="numeric"
                   value={form.citizen_id}
+                  style={{
+                    borderColor:
+                      citizenIdValidation.status === "ok" ? "#22c55e" :
+                      citizenIdValidation.status === "error" ? "#ef4444" :
+                      "#e2e8f0"
+                  }}
                   onChange={e => {
-                    setForm(p => ({ ...p, citizen_id: e.target.value.replace(/\D/g, "") }));
+                    const val = e.target.value.replace(/\D/g, "");
+                    setForm(p => ({ ...p, citizen_id: val }));
                     setFieldErrors(p => ({ ...p, citizen_id: "" }));
-                  }} />
-                {fieldErrors.citizen_id && (
+                    // ✅ Real-time validate
+                    setCitizenIdValidation(validateThaiIDRealtime(val));
+                  }}
+                />
+                {/* ✅ Real-time feedback */}
+                {citizenIdValidation.status === "ok" && (
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "#16a34a" }}>
+                    ✅ {citizenIdValidation.message}
+                  </p>
+                )}
+                {citizenIdValidation.status === "error" && (
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444" }}>
+                    ❌ {citizenIdValidation.message}
+                  </p>
+                )}
+                {fieldErrors.citizen_id && citizenIdValidation.status === "idle" && (
                   <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444" }}>
                     ❌ {fieldErrors.citizen_id}
                   </p>
                 )}
               </Field>
+
               <Field label="อีเมล" required hint="(ลิงก์ตั้งรหัสผ่านจะส่งไปที่นี่)">
                 <SI required type="email" placeholder="admin@hospital.com" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
               </Field>
@@ -982,7 +1049,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            {/* ✅ USERS LIST (แยกบล็อก) */}
+            {/* ✅ USERS LIST */}
             <div style={{ borderRadius: 18, padding: "20px", background: "#fff", border: "1.5px solid #6366f1", boxShadow: "0 4px 16px rgba(99,102,241,0.08)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1111,14 +1178,10 @@ export default function AdminDashboardPage() {
                                 transition: "all 0.2s"
                               }}
                               onMouseEnter={e => {
-                                if (resolvingRequestId !== req.id) {
-                                  e.currentTarget.style.background = "#2563eb";
-                                }
+                                if (resolvingRequestId !== req.id) e.currentTarget.style.background = "#2563eb";
                               }}
                               onMouseLeave={e => {
-                                if (resolvingRequestId !== req.id) {
-                                  e.currentTarget.style.background = "#3b82f6";
-                                }
+                                if (resolvingRequestId !== req.id) e.currentTarget.style.background = "#3b82f6";
                               }}>
                               {resolvingRequestId === req.id ? "กำลัง..." : "✓ ติดต่อแล้ว"}
                             </button>
@@ -1137,54 +1200,33 @@ export default function AdminDashboardPage() {
 
       {/* ✅ EDIT STAFF MODAL */}
       {editingStaff && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center",
-          justifyContent: "center", zIndex: 1000, padding: 20,
-        }}
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}
           onClick={handleCloseEditStaff}>
-          <div style={{
-            background: "#fff", borderRadius: 18, padding: 28, maxWidth: 400,
-            width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-          }}
+          <div style={{ background: "#fff", borderRadius: 18, padding: 28, maxWidth: 400, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
             onClick={e => e.stopPropagation()}>
             <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
               แก้ไขข้อมูล {editingStaff.first_name} {editingStaff.last_name}
             </h2>
             <form onSubmit={handleSaveEditStaff} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <Field label="ชื่อ" required>
-                <SI required placeholder="ชื่อ" value={editStaffForm.first_name}
-                  onChange={e => setEditStaffForm(p => ({ ...p, first_name: e.target.value }))} />
+                <SI required placeholder="ชื่อ" value={editStaffForm.first_name} onChange={e => setEditStaffForm(p => ({ ...p, first_name: e.target.value }))} />
               </Field>
               <Field label="นามสกุล" required>
-                <SI required placeholder="นามสกุล" value={editStaffForm.last_name}
-                  onChange={e => setEditStaffForm(p => ({ ...p, last_name: e.target.value }))} />
+                <SI required placeholder="นามสกุล" value={editStaffForm.last_name} onChange={e => setEditStaffForm(p => ({ ...p, last_name: e.target.value }))} />
               </Field>
               <Field label="อีเมล" required>
-                <SI required type="email" placeholder="email@example.com" value={editStaffForm.email}
-                  onChange={e => setEditStaffForm(p => ({ ...p, email: e.target.value }))} />
+                <SI required type="email" placeholder="email@example.com" value={editStaffForm.email} onChange={e => setEditStaffForm(p => ({ ...p, email: e.target.value }))} />
               </Field>
               <Field label="ตำแหน่ง">
-                <SI placeholder="เช่น แพทย์ทั่วไป" value={editStaffForm.position}
-                  onChange={e => setEditStaffForm(p => ({ ...p, position: e.target.value }))} />
+                <SI placeholder="เช่น แพทย์ทั่วไป" value={editStaffForm.position} onChange={e => setEditStaffForm(p => ({ ...p, position: e.target.value }))} />
               </Field>
-
               <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
                 <button type="submit" disabled={editStaffLoading}
-                  style={{
-                    flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13,
-                    fontWeight: 600, color: "#fff", cursor: editStaffLoading ? "not-allowed" : "pointer",
-                    background: editStaffLoading ? "#cbd5e1" : "#3b82f6", transition: "all 0.2s",
-                  }}>
+                  style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 600, color: "#fff", cursor: editStaffLoading ? "not-allowed" : "pointer", background: editStaffLoading ? "#cbd5e1" : "#3b82f6", transition: "all 0.2s" }}>
                   {editStaffLoading ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
                 </button>
                 <button type="button" onClick={handleCloseEditStaff} disabled={editStaffLoading}
-                  style={{
-                    flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0",
-                    fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc",
-                    cursor: editStaffLoading ? "not-allowed" : "pointer", transition: "all 0.2s",
-                    opacity: editStaffLoading ? 0.5 : 1,
-                  }}>
+                  style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc", cursor: editStaffLoading ? "not-allowed" : "pointer", transition: "all 0.2s", opacity: editStaffLoading ? 0.5 : 1 }}>
                   ยกเลิก
                 </button>
               </div>
@@ -1195,46 +1237,27 @@ export default function AdminDashboardPage() {
 
       {/* ✅ EDIT USER MODAL */}
       {editingUser && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center",
-          justifyContent: "center", zIndex: 1000, padding: 20,
-        }}
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}
           onClick={handleCloseEditUser}>
-          <div style={{
-            background: "#fff", borderRadius: 18, padding: 28, maxWidth: 400,
-            width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-          }}
+          <div style={{ background: "#fff", borderRadius: 18, padding: 28, maxWidth: 400, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
             onClick={e => e.stopPropagation()}>
             <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
               แก้ไขข้อมูล {editingUser.name}
             </h2>
             <form onSubmit={handleSaveEditUser} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <Field label="ชื่อ-นามสกุล" required>
-                <SI required placeholder="ชื่อ-นามสกุล" value={editUserForm.name}
-                  onChange={e => setEditUserForm(p => ({ ...p, name: e.target.value }))} />
+                <SI required placeholder="ชื่อ-นามสกุล" value={editUserForm.name} onChange={e => setEditUserForm(p => ({ ...p, name: e.target.value }))} />
               </Field>
               <Field label="อีเมล" required>
-                <SI required type="email" placeholder="email@example.com" value={editUserForm.email}
-                  onChange={e => setEditUserForm(p => ({ ...p, email: e.target.value }))} />
+                <SI required type="email" placeholder="email@example.com" value={editUserForm.email} onChange={e => setEditUserForm(p => ({ ...p, email: e.target.value }))} />
               </Field>
-
               <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
                 <button type="submit" disabled={editUserLoading}
-                  style={{
-                    flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13,
-                    fontWeight: 600, color: "#fff", cursor: editUserLoading ? "not-allowed" : "pointer",
-                    background: editUserLoading ? "#cbd5e1" : "#6366f1", transition: "all 0.2s",
-                  }}>
+                  style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 600, color: "#fff", cursor: editUserLoading ? "not-allowed" : "pointer", background: editUserLoading ? "#cbd5e1" : "#6366f1", transition: "all 0.2s" }}>
                   {editUserLoading ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
                 </button>
                 <button type="button" onClick={handleCloseEditUser} disabled={editUserLoading}
-                  style={{
-                    flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0",
-                    fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc",
-                    cursor: editUserLoading ? "not-allowed" : "pointer", transition: "all 0.2s",
-                    opacity: editUserLoading ? 0.5 : 1,
-                  }}>
+                  style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc", cursor: editUserLoading ? "not-allowed" : "pointer", transition: "all 0.2s", opacity: editUserLoading ? 0.5 : 1 }}>
                   ยกเลิก
                 </button>
               </div>
@@ -1245,50 +1268,30 @@ export default function AdminDashboardPage() {
 
       {/* ✅ EDIT ADMIN PROFILE MODAL */}
       {showAdminProfileModal && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center",
-          justifyContent: "center", zIndex: 1000, padding: 20,
-        }}
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}
           onClick={handleCloseAdminProfile}>
-          <div style={{
-            background: "#fff", borderRadius: 18, padding: 28, maxWidth: 400,
-            width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-          }}
+          <div style={{ background: "#fff", borderRadius: 18, padding: 28, maxWidth: 400, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
             onClick={e => e.stopPropagation()}>
             <h2 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
               แก้ไขข้อมูลส่วนตัว
             </h2>
             <form onSubmit={handleSaveAdminProfile} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <Field label="ชื่อ" required>
-                <SI required placeholder="ชื่อ" value={adminProfileForm.first_name}
-                  onChange={e => setAdminProfileForm(p => ({ ...p, first_name: e.target.value }))} />
+                <SI required placeholder="ชื่อ" value={adminProfileForm.first_name} onChange={e => setAdminProfileForm(p => ({ ...p, first_name: e.target.value }))} />
               </Field>
               <Field label="นามสกุล" required>
-                <SI required placeholder="นามสกุล" value={adminProfileForm.last_name}
-                  onChange={e => setAdminProfileForm(p => ({ ...p, last_name: e.target.value }))} />
+                <SI required placeholder="นามสกุล" value={adminProfileForm.last_name} onChange={e => setAdminProfileForm(p => ({ ...p, last_name: e.target.value }))} />
               </Field>
               <Field label="อีเมล" required>
-                <SI required type="email" placeholder="email@example.com" value={adminProfileForm.email}
-                  onChange={e => setAdminProfileForm(p => ({ ...p, email: e.target.value }))} />
+                <SI required type="email" placeholder="email@example.com" value={adminProfileForm.email} onChange={e => setAdminProfileForm(p => ({ ...p, email: e.target.value }))} />
               </Field>
-
               <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
                 <button type="submit" disabled={adminProfileLoading}
-                  style={{
-                    flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13,
-                    fontWeight: 600, color: "#fff", cursor: adminProfileLoading ? "not-allowed" : "pointer",
-                    background: adminProfileLoading ? "#cbd5e1" : "#3b82f6", transition: "all 0.2s",
-                  }}>
+                  style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 600, color: "#fff", cursor: adminProfileLoading ? "not-allowed" : "pointer", background: adminProfileLoading ? "#cbd5e1" : "#3b82f6", transition: "all 0.2s" }}>
                   {adminProfileLoading ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
                 </button>
                 <button type="button" onClick={handleCloseAdminProfile} disabled={adminProfileLoading}
-                  style={{
-                    flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0",
-                    fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc",
-                    cursor: adminProfileLoading ? "not-allowed" : "pointer", transition: "all 0.2s",
-                    opacity: adminProfileLoading ? 0.5 : 1,
-                  }}>
+                  style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc", cursor: adminProfileLoading ? "not-allowed" : "pointer", transition: "all 0.2s", opacity: adminProfileLoading ? 0.5 : 1 }}>
                   ยกเลิก
                 </button>
               </div>
