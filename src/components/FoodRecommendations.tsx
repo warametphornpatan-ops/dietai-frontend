@@ -99,12 +99,13 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
         const fetchRecommendedFoods = async () => {
             setLoading(true);
             try {
-                const status = getCurrentType();
-                const response = await fetch(`/foods/recommendations?bmiStatus=${status}`);
+                // ✅ Direct fetch without bmiStatus (Backend gets it from current_user)
+                const response = await fetch(`/api/foods/recommendations`);
                 const result = await response.json();
 
-                if (result.success && Array.isArray(result.data)) {
-                    setFoods(result.data);
+                // ✅ Changed to access result.recommended_dishes instead of result.data
+                if (result.recommended_dishes && Array.isArray(result.recommended_dishes)) {
+                    setFoods(result.recommended_dishes);
                 } else {
                     setFoods([]);
                 }
@@ -173,8 +174,8 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
                                 className={`text-[10px] px-2.5 py-1 rounded-full transition-all border ${activeCategory === cat.id
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold"
-                                        : "bg-white text-gray-500 border-transparent hover:bg-gray-50"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold"
+                                    : "bg-white text-gray-500 border-transparent hover:bg-gray-50"
                                     }`}
                             >
                                 {cat.name}
