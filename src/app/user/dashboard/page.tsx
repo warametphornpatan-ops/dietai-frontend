@@ -80,14 +80,13 @@ function readUserNutrition() {
 // ✅ Helper function สำหรับ refetch data จาก API
 async function refetchNutritionData(token: string) {
     try {
-        console.log("🔄 Refetching nutrition data from /foods/summary...");
-        const res = await fetch(`${API_BASE}/api/foods/summary`, {
-            headers: { 
+        console.log("🔵 Refetching nutrition data from /api/foods/recommendations...");
+        const res = await fetch(`${API_BASE}/api/foods/recommendations`, {
+            headers: {
                 Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json"
             },
         });
-
         if (!res.ok) {
             console.error("❌ Refetch failed:", res.status);
             return null;
@@ -174,8 +173,7 @@ export default function HomePage() {
                     setTargetCal(data.target_calories ?? 0);
 
                     // 2. ✅ ดึงข้อมูล nutrition จาก /foods/summary (แทน /foods/today)
-                    console.log("📊 Fetching nutrition summary...");
-                    const nutritionRes = await fetch(`${API_BASE}/foods/summary`, {
+                    const nutritionRes = await fetch(`${API_BASE}/api/foods/today/${user?.id}`, {
                         headers: { Authorization: `Bearer ${token}` },
                         signal: controller.signal,
                     });
@@ -228,7 +226,7 @@ export default function HomePage() {
     // ✅ Event Listener: nutritionUpdated (เพิ่มอาหาร)
     useEffect(() => {
         if (!user) return;
-        
+
         function onNutritionUpdate(e: Event) {
             const ce = (e as CustomEvent).detail ?? {};
 
