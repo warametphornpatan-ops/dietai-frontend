@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import FoodRecommendations from "@/components/FoodRecommendations";
 
-
 // --- Interfaces ---
 interface User {
     id: number;
@@ -27,7 +26,6 @@ interface User {
     target_protein?: number;
     target_fat?: number;
 }
-
 
 interface HealthRecord {
     id: number;
@@ -56,6 +54,32 @@ interface NavItemProps {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 // --- Helper Functions ---
+
+// ✅ Helper function แปลงวันที่เป็นรูปแบบไทยพร้อมเวลา
+function formatThaiDateTime(dateString: string | undefined): { date: string; time: string } {
+    if (!dateString) {
+        return { date: "ไม่ระบุวันที่", time: "" };
+    }
+    
+    try {
+        const date = new Date(dateString);
+        const thaiDate = date.toLocaleDateString("th-TH", {
+            year: "numeric",
+            month: "long",
+            day: "numeric"
+        });
+        const time = date.toLocaleTimeString("th-TH", {
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+        
+        return { date: thaiDate, time };
+    } catch {
+        return { date: "ไม่ระบุวันที่", time: "" };
+    }
+}
+
+// ✅ อ่านข้อมูลอาหารจากฐานข้อมูล (ไม่ใช้ localStorage เดียว)
 function readUserNutrition() {
     if (typeof window === "undefined") {
         return { cal: 0, carb: 0, protein: 0, fat: 0 };
@@ -65,6 +89,7 @@ function readUserNutrition() {
         const today = new Date().toDateString();
         if (!raw) return { cal: 0, carb: 0, protein: 0, fat: 0 };
         const parsed = JSON.parse(raw);
+        // ✅ ถ้าเป็นวันเดียวกัน ให้ใช้ค่า มิฉะนั้นรีเซ็ต
         if (parsed.date !== today) return { cal: 0, carb: 0, protein: 0, fat: 0 };
         return {
             cal: Number(parsed.cal ?? 0),
@@ -77,11 +102,28 @@ function readUserNutrition() {
     }
 }
 
-// ✅ Helper function สำหรับ refetch data จาก API
-async function refetchNutritionData(token: string) {
+// ✅ บันทึกข้อมูลอาหารลง localStorage
+function saveUserNutrition(data: { cal: number; carb: number; protein: number; fat: number }) {
+    if (typeof window === "undefined") return;
     try {
-        console.log("🔵 Refetching nutrition data from /api/foods/recommendations...");
-        const res = await fetch(`${API_BASE}/api/foods/recommendations`, {
+        const today = new Date().toDateString();
+        localStorage.setItem("userNutrition", JSON.stringify({
+            date: today,
+            cal: data.cal,
+            carb: data.carb,
+            protein: data.protein,
+            fat: data.fat
+        }));
+    } catch (e) {
+        console.error("Failed to save nutrition:", e);
+    }
+}
+
+// ✅ Refetch nutrition data จาก API
+async function refetchNutritionData(token: string, userId: number) {
+    try {
+        console.log("🔵 Refetching nutrition data from API...");
+        const res = await fetch(`${API_BASE}/api/foods/today/${userId}`, {
             headers: {
                 Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json"
@@ -94,12 +136,18 @@ async function refetchNutritionData(token: string) {
 
         const data = await res.json();
         console.log("✅ Refetch success:", data);
-        return {
+        
+        const nutrition = {
             cal: data.total_calories || 0,
             carb: data.total_carbs || 0,
             protein: data.total_protein || 0,
             fat: data.total_fat || 0,
         };
+        
+        // ✅ บันทึกลง localStorage
+        saveUserNutrition(nutrition);
+        
+        return nutrition;
     } catch (error) {
         console.error("❌ Refetch error:", error);
         return null;
@@ -142,6 +190,7 @@ export default function HomePage() {
             return;
         }
 
+        // ✅ อ่านข้อมูลเก่า (ถ้าเป็นวันเดียวกัน)
         const localNut = readUserNutrition();
         setCalEaten(localNut.cal);
         setCarbEaten(localNut.carb);
@@ -172,14 +221,13 @@ export default function HomePage() {
                     setUser(data);
                     setTargetCal(data.target_calories ?? 0);
 
-                    // 2. ✅ ดึงข้อมูล nutrition จาก /api/foods/today
-                    // ✅ เพิ่ม null check สำหรับ user.id
                     if (!data?.id) {
                         console.warn("⚠️ User ID not found");
                         setLoading(false);
                         return;
                     }
 
+                    // 2. ✅ ดึงข้อมูล nutrition จาก API และบันทึกลง localStorage
                     const nutritionRes = await fetch(`${API_BASE}/api/foods/today/${data.id}`, {
                         headers: { Authorization: `Bearer ${token}` },
                         signal: controller.signal,
@@ -189,10 +237,20 @@ export default function HomePage() {
                         const nutrition = await nutritionRes.json();
                         console.log("✅ Nutrition summary loaded:", nutrition);
 
-                        setCalEaten(Number(nutrition.total_calories || 0));
-                        setCarbEaten(Number(nutrition.total_carbs || 0));
-                        setProEaten(Number(nutrition.total_protein || 0));
-                        setFatEaten(Number(nutrition.total_fat || 0));
+                        const nutritionData = {
+                            cal: Number(nutrition.total_calories || 0),
+                            carb: Number(nutrition.total_carbs || 0),
+                            protein: Number(nutrition.total_protein || 0),
+                            fat: Number(nutrition.total_fat || 0),
+                        };
+
+                        setCalEaten(nutritionData.cal);
+                        setCarbEaten(nutritionData.carb);
+                        setProEaten(nutritionData.protein);
+                        setFatEaten(nutritionData.fat);
+
+                        // ✅ บันทึกลง localStorage
+                        saveUserNutrition(nutritionData);
                     } else {
                         console.warn("⚠️ Failed to fetch nutrition summary:", nutritionRes.status);
                     }
@@ -237,7 +295,11 @@ export default function HomePage() {
         function onNutritionUpdate(e: Event) {
             const ce = (e as CustomEvent).detail ?? {};
 
-            if (ce.cal !== undefined) setCalEaten(prev => prev + Number(ce.cal));
+            setCalEaten(prev => {
+                const newVal = prev + Number(ce.cal ?? 0);
+                saveUserNutrition({ cal: newVal, carb: carbEaten, protein: proEaten, fat: fatEaten });
+                return newVal;
+            });
 
             if (ce.carb !== undefined) {
                 setCarbEaten(prev => {
@@ -246,17 +308,31 @@ export default function HomePage() {
                     if (targetCarb > 0 && newCarb > targetCarb) {
                         setTimeout(() => setCarbWarning({ show: true, current: newCarb, target: targetCarb }), 0);
                     }
+                    saveUserNutrition({ cal: calEaten, carb: newCarb, protein: proEaten, fat: fatEaten });
                     return newCarb;
                 });
             }
 
-            if (ce.protein !== undefined) setProEaten(prev => prev + Number(ce.protein));
-            if (ce.fat !== undefined) setFatEaten(prev => prev + Number(ce.fat));
+            if (ce.protein !== undefined) {
+                setProEaten(prev => {
+                    const newVal = prev + Number(ce.protein);
+                    saveUserNutrition({ cal: calEaten, carb: carbEaten, protein: newVal, fat: fatEaten });
+                    return newVal;
+                });
+            }
+
+            if (ce.fat !== undefined) {
+                setFatEaten(prev => {
+                    const newVal = prev + Number(ce.fat);
+                    saveUserNutrition({ cal: calEaten, carb: carbEaten, protein: proEaten, fat: newVal });
+                    return newVal;
+                });
+            }
         }
 
         window.addEventListener("nutritionUpdated", onNutritionUpdate as EventListener);
         return () => window.removeEventListener("nutritionUpdated", onNutritionUpdate as EventListener);
-    }, [user]);
+    }, [user, calEaten, carbEaten, proEaten, fatEaten]);
 
     // ✅ Event Listener: foodDataRefreshed (refetch จาก API หลังบันทึก)
     useEffect(() => {
@@ -265,10 +341,20 @@ export default function HomePage() {
             console.log("📊 Food data refreshed from API:", data);
 
             if (data) {
-                setCalEaten(data.total_calories || 0);
-                setCarbEaten(data.total_carbs || 0);
-                setProEaten(data.total_protein || 0);
-                setFatEaten(data.total_fat || 0);
+                const nutrition = {
+                    cal: data.total_calories || 0,
+                    carb: data.total_carbs || 0,
+                    protein: data.total_protein || 0,
+                    fat: data.total_fat || 0,
+                };
+                
+                setCalEaten(nutrition.cal);
+                setCarbEaten(nutrition.carb);
+                setProEaten(nutrition.protein);
+                setFatEaten(nutrition.fat);
+
+                // ✅ บันทึกลง localStorage
+                saveUserNutrition(nutrition);
             }
         };
 
@@ -285,7 +371,7 @@ export default function HomePage() {
             const token = localStorage.getItem("token");
             if (!token) return;
 
-            const freshData = await refetchNutritionData(token);
+            const freshData = await refetchNutritionData(token, user.id);
             if (freshData) {
                 console.log("✅ Updated nutrition data:", freshData);
                 setCalEaten(freshData.cal);
@@ -402,11 +488,7 @@ export default function HomePage() {
                     </div>
 
                     <div className="md:col-span-5 lg:col-span-4 space-y-6">
-                        {/* กล่องคำแนะนำแพทย์ — คลิกเพื่อเปิด Modal */}
-                        <button
-                            onClick={() => setShowHealthModal(true)}
-                            className="w-full text-left"
-                        >
+                        <button onClick={() => setShowHealthModal(true)} className="w-full text-left">
                             <Card className="border-0 shadow-sm ring-1 ring-blue-100 bg-white hover:ring-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer group">
                                 <CardHeader className="pb-3 border-b border-blue-50 bg-blue-50/30">
                                     <CardTitle className="text-base text-blue-800 flex items-center justify-between">
@@ -419,7 +501,6 @@ export default function HomePage() {
                                 <CardContent className="pt-4">
                                     {healthRecords.length > 0 ? (
                                         <div className="space-y-2">
-                                            {/* แสดง preview แค่รายการแรก */}
                                             <div className="relative pl-4 border-l-2 border-blue-200">
                                                 <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-blue-200"></div>
                                                 <p className="text-xs text-gray-400 mb-1">
@@ -458,7 +539,7 @@ export default function HomePage() {
 
             <FoodUploadModal open={showUpload} onClose={() => setShowUpload(false)} />
 
-            {/* Modal คำแนะนำแพทย์ทั้งหมด */}
+            {/* ✅ Modal คำแนะนำแพทย์ - WITH DATE & TIME */}
             {showHealthModal && (
                 <div
                     className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm"
@@ -468,7 +549,6 @@ export default function HomePage() {
                         className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-blue-50 bg-blue-50/40 rounded-t-2xl">
                             <h3 className="text-base font-bold text-blue-800 flex items-center gap-2">
                                 👨‍⚕️ คำแนะนำแพทย์ทั้งหมด
@@ -481,44 +561,53 @@ export default function HomePage() {
                             </button>
                         </div>
 
-                        {/* Content */}
                         <div className="overflow-y-auto flex-1 px-6 py-4">
                             {healthRecords.length > 0 ? (
                                 <div className="space-y-4">
-                                    {healthRecords.map((rec) => (
-                                        <div key={rec.id} className="relative pl-4 border-l-2 border-blue-200">
-                                            <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-blue-400"></div>
-                                            <p className="text-xs text-gray-400 mb-1">
-                                                {rec.createdAt
-                                                    ? new Date(rec.createdAt).toLocaleDateString("th-TH")
-                                                    : "ไม่ระบุวันที่"}
-                                            </p>
-                                            {(rec.systolic || rec.diastolic || rec.pulse) && (
-                                                <div className="flex gap-2 flex-wrap mb-2">
-                                                    {rec.systolic && rec.diastolic && (
-                                                        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
-                                                            🩺 {rec.systolic}/{rec.diastolic} mmHg
-                                                        </span>
-                                                    )}
-                                                    {rec.pulse && (
-                                                        <span className="text-xs bg-rose-50 text-rose-500 px-2 py-0.5 rounded-full font-medium">
-                                                            ❤️ {rec.pulse} bpm
-                                                        </span>
+                                    {healthRecords.map((rec) => {
+                                        const { date: thaiDate, time: thaiTime } = formatThaiDateTime(rec.createdAt);
+                                        return (
+                                            <div key={rec.id} className="relative pl-4 border-l-2 border-blue-200">
+                                                <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-blue-400"></div>
+                                                
+                                                <div className="mb-2">
+                                                    <p className="text-xs font-semibold text-blue-600 mb-0.5">
+                                                        📅 {thaiDate}
+                                                    </p>
+                                                    {thaiTime && (
+                                                        <p className="text-xs text-gray-400">
+                                                            🕐 {thaiTime}
+                                                        </p>
                                                     )}
                                                 </div>
-                                            )}
-                                            <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-600 leading-relaxed">
-                                                {rec.recommendation}
+
+                                                {(rec.systolic || rec.diastolic || rec.pulse) && (
+                                                    <div className="flex gap-2 flex-wrap mb-2">
+                                                        {rec.systolic && rec.diastolic && (
+                                                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                                                                🩺 {rec.systolic}/{rec.diastolic} mmHg
+                                                            </span>
+                                                        )}
+                                                        {rec.pulse && (
+                                                            <span className="text-xs bg-rose-50 text-rose-500 px-2 py-0.5 rounded-full font-medium">
+                                                                ❤️ {rec.pulse} bpm
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-600 leading-relaxed">
+                                                    {rec.recommendation}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="text-center py-12 text-gray-400 text-sm">ยังไม่มีคำแนะนำใหม่</div>
                             )}
                         </div>
 
-                        {/* Footer */}
                         <div className="px-6 py-4 border-t border-gray-100">
                             <Button
                                 onClick={() => setShowHealthModal(false)}
