@@ -503,11 +503,24 @@ export default function HomePage() {
                                         <div className="space-y-2">
                                             <div className="relative pl-4 border-l-2 border-blue-200">
                                                 <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-blue-200"></div>
-                                                <p className="text-xs text-gray-400 mb-1">
-                                                    {healthRecords[0].createdAt
-                                                        ? new Date(healthRecords[0].createdAt).toLocaleDateString("th-TH")
-                                                        : "ไม่ระบุวันที่"}
-                                                </p>
+                                                
+                                                {/* ✅ FIXED: ใช้ formatThaiDateTime() - แสดงวันที่ + เวลา */}
+                                                {(() => {
+                                                    const { date: thaiDate, time: thaiTime } = formatThaiDateTime(healthRecords[0].createdAt);
+                                                    return (
+                                                        <>
+                                                            <p className="text-xs font-semibold text-blue-600 mb-0.5">
+                                                                📅 {thaiDate}
+                                                            </p>
+                                                            {thaiTime && (
+                                                                <p className="text-xs text-gray-400 mb-2">
+                                                                    🕐 {thaiTime}
+                                                                </p>
+                                                            )}
+                                                        </>
+                                                    );
+                                                })()}
+                                                
                                                 <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-600 line-clamp-2">
                                                     {healthRecords[0].recommendation}
                                                 </div>
