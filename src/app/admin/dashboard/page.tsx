@@ -1377,7 +1377,9 @@ export default function AdminDashboardPage() {
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 onClick={() => setSelectedApplication(null)}
-                style={{ flex: 0.8, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc", cursor: "pointer", transition: "all 0.2s" }}>
+                style={{ padding: "10px 24px", borderRadius: 10, border: "1.5px solid #cbd5e1", fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#94a3b8"; e.currentTarget.style.color = "#475569"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.color = "#64748b"; }}>
                 ปิด
               </button>
             </div>
