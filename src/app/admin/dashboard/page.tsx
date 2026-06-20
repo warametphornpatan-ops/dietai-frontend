@@ -957,14 +957,14 @@ export default function AdminDashboardPage() {
                                 <button
                                   onClick={() => handleApproveDoctorApplication(app)}
                                   disabled={isApproving || isRejecting}
-                                  style={{ padding: "5px 12px", borderRadius: 7, border: "none", background: isApproving ? "#cbd5e1" : "#10b981", color: "#fff", fontSize: 12, fontWeight: 600, cursor: isApproving || isRejecting ? "not-allowed" : "pointer", opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.15s" }}>
-                                  {isApproving ? "..." : "✅"}
+                                  style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: isApproving ? "#cbd5e1" : "#10b981", color: "#fff", fontSize: 12, fontWeight: 600, cursor: isApproving || isRejecting ? "not-allowed" : "pointer", opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.15s", whiteSpace: "nowrap" }}>
+                                  {isApproving ? "กำลัง..." : "อนุมัติ"}
                                 </button>
                                 <button
                                   onClick={() => handleRejectDoctorApplication(app)}
                                   disabled={isApproving || isRejecting}
-                                  style={{ padding: "5px 12px", borderRadius: 7, border: "none", background: isRejecting ? "#cbd5e1" : "#ef4444", color: "#fff", fontSize: 12, fontWeight: 600, cursor: isApproving || isRejecting ? "not-allowed" : "pointer", opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.15s" }}>
-                                  {isRejecting ? "..." : "❌"}
+                                  style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: isRejecting ? "#cbd5e1" : "#ef4444", color: "#fff", fontSize: 12, fontWeight: 600, cursor: isApproving || isRejecting ? "not-allowed" : "pointer", opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.15s", whiteSpace: "nowrap" }}>
+                                  {isRejecting ? "กำลัง..." : "ปฏิเสธ"}
                                 </button>
                               </div>
                             </td>
@@ -1375,16 +1375,6 @@ export default function AdminDashboardPage() {
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => { handleApproveDoctorApplication(selectedApplication); setSelectedApplication(null); }}
-                style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 600, color: "#fff", background: "#10b981", cursor: "pointer", transition: "all 0.2s" }}>
-                ✅ อนุมัติ
-              </button>
-              <button
-                onClick={() => { handleRejectDoctorApplication(selectedApplication); setSelectedApplication(null); }}
-                style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 600, color: "#fff", background: "#ef4444", cursor: "pointer", transition: "all 0.2s" }}>
-                ❌ ปฏิเสธ
-              </button>
               <button
                 onClick={() => setSelectedApplication(null)}
                 style={{ flex: 0.8, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc", cursor: "pointer", transition: "all 0.2s" }}>
