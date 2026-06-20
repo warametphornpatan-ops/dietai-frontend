@@ -130,14 +130,13 @@ export default function DoctorDashboard() {
       const username = (decoded.username || decoded.sub || "") as string;
 
       setDoctorProfile({
-        hospitalName: orgCode ? "กำลังโหลดข้อมูลสถานพยาบาล..." : "ไม่ระบุสถานพยาบาล",
+        hospitalName: "กำลังโหลดข้อมูลสถานพยาบาล...",
         firstName, lastName,
-        position,
+        position, 
         doctorId: username,
         orgCode
       });
 
-      // ✅ FIX: เดิมถ้า orgCode ว่าง จะไม่เข้า if เลย ทำให้ hospitalName ค้างที่ "กำลังโหลด..." ตลอดไป
       if (orgCode) {
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organizations/${orgCode}`)
           .then(res => { if (res.ok) return res.json(); throw new Error(); })
@@ -151,7 +150,6 @@ export default function DoctorDashboard() {
             setDoctorProfile(prev => prev ? { ...prev, hospitalName: `หน่วยงานรหัส: ${orgCode}` } : null);
           });
       }
-      // กรณี orgCode ว่าง: hospitalName ถูกตั้งเป็น "ไม่ระบุสถานพยาบาล" ไปแล้วด้านบน ไม่ต้องทำอะไรเพิ่ม
     }
   }, [router]);
 
