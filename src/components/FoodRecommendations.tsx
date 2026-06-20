@@ -100,7 +100,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
             setLoading(true);
             try {
                 const status = getCurrentType();
-                const response = await fetch(`/api/foods/recommendations?bmiStatus=${status}`);
+                const response = await fetch(`/foods/recommendations?bmiStatus=${status}`);
                 const result = await response.json();
 
                 if (result.success && Array.isArray(result.data)) {
