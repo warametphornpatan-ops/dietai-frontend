@@ -374,3 +374,43 @@ export async function checkUsernameAvailability(username: string) {
     };
   }
 }
+
+export async function checkCitizenIdExists(citizenId: string) {
+  try {
+    // 1. เช็คในตาราง doctors
+    const { data: doctors, error: dError } = await supabase
+      .from('doctors')
+      .select('id')
+      .eq('citizen_id', citizenId)
+      .limit(1);
+    if (dError) throw dError;
+
+    // 2. เช็คในตาราง admins
+    const { data: admins, error: aError } = await supabase
+      .from('admins')
+      .select('id')
+      .eq('citizen_id', citizenId)
+      .limit(1);
+    if (aError) throw aError;
+
+    // 3. เช็คในตาราง doctor_applications (คำขอที่รออนุมัติ)
+    const { data: apps, error: appError } = await supabase
+      .from('doctor_applications')
+      .select('id')
+      .eq('citizen_id', citizenId)
+      .limit(1);
+    if (appError && appError.code !== '42P01') throw appError; // เผื่อกรณีไม่มีตาราง doctor_applications ให้ข้ามไป
+
+    const isDuplicate = (doctors && doctors.length > 0) || 
+                        (admins && admins.length > 0) || 
+                        (apps && apps.length > 0);
+
+    return { success: true, isDuplicate };
+  } catch (error) {
+    return { 
+      success: false, 
+      isDuplicate: false, 
+      error: error instanceof Error ? error.message : 'Check failed' 
+    };
+  }
+}

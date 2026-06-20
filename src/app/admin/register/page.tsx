@@ -7,6 +7,7 @@ import bcryptjs from "bcryptjs";
 import { saveDoctorApplication, checkUsernameAvailabilityInApplications } from "@/lib/supabase-applications-helpers";
 import { validateThaiID } from "@/lib/validateThaiID";
 import { supabase } from "@/lib/supabase";
+import { checkCitizenIdExists } from "@/lib/supabase-helpers"; // ✅ นำเข้าฟังก์ชันตรวจสอบบัตรประชาชน
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -92,6 +93,11 @@ export default function AdminRegisterPage() {
   const [usernameMessage, setUsernameMessage] = useState("");
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "success" | "error">("idle");
 
+  // ✅ เพิ่ม State สำหรับตรวจสอบเลขบัตรประชาชน
+  const [checkingCitizen, setCheckingCitizen] = useState(false);
+  const [citizenMessage, setCitizenMessage] = useState("");
+  const [citizenStatus, setCitizenStatus] = useState<"idle" | "success" | "error">("idle");
+
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof AdminRegisterForm, string>>>({});
@@ -123,6 +129,44 @@ export default function AdminRegisterPage() {
       else { setOrgStatus("error"); setOrgName("ไม่พบรหัสหน่วยงานนี้ในระบบ"); }
     } catch { setOrgStatus("error"); setOrgName("เกิดข้อผิดพลาดในการเชื่อมต่อ"); }
     finally { setCheckingOrg(false); }
+  }
+
+  // ✅ ฟังก์ชันตรวจสอบเลขบัตรประชาชน
+  async function handleCheckCitizen() {
+    const digits = form.citizen_id.replace(/\D/g, "");
+    if (digits.length !== 13) {
+      setFieldErrors(p => ({ ...p, citizen_id: "ต้องเป็นตัวเลข 13 หลัก" }));
+      return;
+    }
+    const result = validateThaiID(digits);
+    if (!result.isValid) {
+      setFieldErrors(p => ({ ...p, citizen_id: result.message }));
+      return;
+    }
+
+    setCheckingCitizen(true);
+    setCitizenStatus("idle");
+    setCitizenMessage("");
+    try {
+      const res = await checkCitizenIdExists(digits);
+      if (res.success) {
+        if (res.isDuplicate) {
+          setCitizenStatus("error");
+          setCitizenMessage("เลขบัตรประชาชนนี้มีในระบบแล้ว");
+        } else {
+          setCitizenStatus("success");
+          setCitizenMessage("สามารถใช้เลขบัตรประชาชนนี้ได้");
+        }
+      } else {
+        setCitizenStatus("error");
+        setCitizenMessage("เกิดข้อผิดพลาดในการตรวจสอบ");
+      }
+    } catch {
+      setCitizenStatus("error");
+      setCitizenMessage("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+    } finally {
+      setCheckingCitizen(false);
+    }
   }
 
   async function handleCheckUsername() {
@@ -158,6 +202,8 @@ export default function AdminRegisterPage() {
 
     const errs: Partial<Record<keyof AdminRegisterForm, string>> = {};
     if (orgStatus !== "success") errs.org_code = "กรุณาตรวจสอบรหัสหน่วยงานก่อน";
+    // ✅ เพิ่มการดัก Error ว่าต้องตรวจสอบบัตรผ่านก่อน
+    if (citizenStatus !== "success") errs.citizen_id = "กรุณาตรวจสอบเลขบัตรประชาชนก่อน";
     
     const digits = form.citizen_id.replace(/\D/g, "");
     
@@ -351,11 +397,49 @@ export default function AdminRegisterPage() {
             )}
           </Field>
 
-          {/* citizen id */}
+          {/* citizen id (✅ อัปเดต UI ให้มีปุ่มตรวจสอบ) */}
           <Field label="เลขบัตรประชาชน" hint="(13 หลัก)" error={fieldErrors.citizen_id}>
-            <StyledInput type="text" inputMode="numeric" maxLength={13} placeholder="xxxxxxxxxxxxxxxxx"
-              value={form.citizen_id} hasError={!!fieldErrors.citizen_id}
-              onChange={e => { setForm(p => ({ ...p, citizen_id: e.target.value.replace(/\D/g, "") })); setFieldErrors(p => ({ ...p, citizen_id: "" })); }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="text" inputMode="numeric" maxLength={13} placeholder="xxxxxxxxxxxxxxxxx"
+                value={form.citizen_id}
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  setForm(p => ({ ...p, citizen_id: val }));
+                  setFieldErrors(p => ({ ...p, citizen_id: "" }));
+                  setCitizenStatus("idle");
+                  setCitizenMessage("");
+                }}
+                style={{ ...inputBase, flex: 1, borderColor: fieldErrors.citizen_id ? "#fca5a5" : citizenStatus === "success" ? "#16a360" : citizenStatus === "error" ? "#fca5a5" : "#c8e8d8" }}
+                onFocus={e => e.currentTarget.style.borderColor = "#16a360"}
+                onBlur={e => e.currentTarget.style.borderColor = fieldErrors.citizen_id ? "#fca5a5" : citizenStatus === "success" ? "#16a360" : "#c8e8d8"}
+              />
+              <button type="button" onClick={handleCheckCitizen} disabled={checkingCitizen || form.citizen_id.length !== 13}
+                style={{
+                  padding: "0 16px", borderRadius: 12,
+                  border: citizenStatus === "success" ? "1.5px solid #86efac" : "1.5px solid #fca5a5",
+                  background: citizenStatus === "success" ? "#dcfce7" : "#fee2e2",
+                  color: citizenStatus === "success" ? "#16a360" : "#dc2626",
+                  fontSize: 13, fontWeight: 600,
+                  cursor: checkingCitizen || form.citizen_id.length !== 13 ? "not-allowed" : "pointer",
+                  opacity: checkingCitizen || form.citizen_id.length !== 13 ? 0.5 : 1, whiteSpace: "nowrap", flexShrink: 0,
+                  transition: "all 0.2s",
+                }}>
+                {checkingCitizen ? "กำลังตรวจ..." : "ตรวจสอบ"}
+              </button>
+            </div>
+            {citizenStatus !== "idle" && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 10, marginTop: 2,
+                background: citizenStatus === "success" ? "rgba(22,163,96,0.08)" : "rgba(239,68,68,0.07)",
+                border: `1px solid ${citizenStatus === "success" ? "rgba(22,163,96,0.25)" : "rgba(239,68,68,0.2)"}`,
+              }}>
+                {citizenStatus === "success"
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a360" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
+                <span style={{ fontSize: 13, fontWeight: 500, color: citizenStatus === "success" ? "#0d6e43" : "#dc2626" }}>{citizenMessage}</span>
+              </div>
+            )}
           </Field>
 
           {/* name row */}
@@ -468,13 +552,13 @@ export default function AdminRegisterPage() {
             </div>
           </Field>
 
-          {/* submit */}
-          <button type="submit" disabled={loading || orgStatus !== "success" || usernameStatus !== "success"}
+          {/* submit (✅ ปิดปุ่มจนกว่าจะตรวจสอบบัตร ปชช ผ่าน) */}
+          <button type="submit" disabled={loading || orgStatus !== "success" || usernameStatus !== "success" || citizenStatus !== "success"}
             style={{
               width: "100%", padding: 14, marginTop: 4, borderRadius: 14, border: "none", fontSize: 15,
-              fontWeight: 700, color: "#fff", cursor: loading || orgStatus !== "success" || usernameStatus !== "success" ? "not-allowed" : "pointer",
-              background: loading || orgStatus !== "success" || usernameStatus !== "success" ? "#a7d4bc" : "linear-gradient(135deg,#16a360,#0d8a4f)",
-              boxShadow: loading || orgStatus !== "success" || usernameStatus !== "success" ? "none" : "0 6px 20px rgba(22,163,96,0.35)",
+              fontWeight: 700, color: "#fff", cursor: loading || orgStatus !== "success" || usernameStatus !== "success" || citizenStatus !== "success" ? "not-allowed" : "pointer",
+              background: loading || orgStatus !== "success" || usernameStatus !== "success" || citizenStatus !== "success" ? "#a7d4bc" : "linear-gradient(135deg,#16a360,#0d8a4f)",
+              boxShadow: loading || orgStatus !== "success" || usernameStatus !== "success" || citizenStatus !== "success" ? "none" : "0 6px 20px rgba(22,163,96,0.35)",
               transition: "all 0.2s",
             }}>
             {loading ? (
@@ -586,7 +670,6 @@ export default function AdminRegisterPage() {
           </div>
         </div>
       )}
-
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
