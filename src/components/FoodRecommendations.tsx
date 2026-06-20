@@ -24,12 +24,46 @@ interface FoodRecommendationsProps {
     user: User | null;
 }
 
-// ✅ Updated: Match Backend response format
 interface FoodFromDB {
     name: string;
     calories: number;
     category: string;
     image_url: string;
+}
+
+interface BackendFoodDish {
+    name?: string;
+    ThaiName?: string;
+    calories?: number;
+    Calories?: number;
+    category?: string;
+    Category?: string;
+    image_url?: string;
+}
+
+interface BackendBeverage {
+    name?: string;
+    ThaiName?: string;
+    food_thai?: string;
+    calories?: number;
+    Calories?: number;
+    protein?: number;
+    fat?: number;
+    category?: string;
+    Category?: string;
+    image_url?: string;
+}
+
+interface BackendRecommendationResponse {
+    bmi?: number;
+    category?: string;
+    advice?: string;
+    recommended_dishes?: BackendFoodDish[];
+    beverages?: BackendBeverage[];
+    data?: {
+        recommended_dishes?: BackendFoodDish[];
+        beverages?: BackendBeverage[];
+    };
 }
 
 const getBmiRemark = (bmi: number) => {
@@ -70,6 +104,21 @@ const getBmiRemark = (bmi: number) => {
     }
 };
 
+// ✅ ฟังก์ชันแปลงชื่อ Key จาก Backend ให้ตรงกับ Frontend (รองรับทั้งพิมพ์เล็ก/พิมพ์ใหญ่)
+const formatFoodData = (item: BackendFoodDish): FoodFromDB => ({
+    name: item.ThaiName || item.name || "ไม่มีชื่อเมนู",
+    calories: item.Calories || item.calories || 0,
+    category: item.Category || item.category || "อาหารคาว",
+    image_url: item.image_url || "/foods/default-food.jpg"
+});
+
+const formatBeverageData = (item: BackendBeverage): FoodFromDB => ({
+    name: item.ThaiName || item.name || item.food_thai || "ไม่มีชื่อเมนู",
+    calories: item.Calories || item.calories || 0,
+    category: "เครื่องดื่ม",
+    image_url: item.image_url || "/foods/default-food.jpg"
+});
+
 export default function FoodRecommendations({ user }: FoodRecommendationsProps) {
     const [activeCategory, setActiveCategory] = useState<"อาหารคาว" | "ผลไม้" | "เครื่องดื่ม">("อาหารคาว");
     const [foods, setFoods] = useState<FoodFromDB[]>([]);
@@ -78,15 +127,15 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
     const bmi = Number(user?.bmi ?? 0);
 
     const categories = [
-        { id: "อาหารคาว", name: "🍱 อาหารแนะนำ" },
-        { id: "ผลไม้", name: "🍎 ผลไม้" },
-        { id: "เครื่องดื่ม", name: "🥤 เครื่องดื่ม" },
-    ] as const;
+        { id: "อาหารคาว" as const, name: "🍱 อาหารแนะนำ" },
+        { id: "ผลไม้" as const, name: "🍎 ผลไม้" },
+        { id: "เครื่องดื่ม" as const, name: "🥤 เครื่องดื่ม" },
+    ];
 
-    // ✅ Fetch from /api/foods/recommendations (improved from Gemini suggestion)
+    // ✅ Fetch from /api/foods/recommendations
     useEffect(() => {
-        const fetchRecommendedFoods = async () => {
-            // ป้องกันการยิง API ถ้ายังไม่มีข้อมูล User
+        const fetchRecommendedFoods = async (): Promise<void> => {
+            // 🛑 ป้องกันไม่ให้ยิง API ถ้ายังไม่มี ID ผู้ใช้ (ป้องกัน Error 500)
             if (!user?.id) {
                 console.log("⏳ Waiting for user data...");
                 setLoading(false);
@@ -98,39 +147,54 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                 console.log("🔵 Fetching from /api/foods/recommendations...");
                 
                 const response = await fetch(`/api/foods/recommendations`);
+                console.log(`📊 Response status: ${response.status}`);
                 
                 if (!response.ok) {
-                    console.error(`❌ Failed to fetch: ${response.status}`);
+                    const errorText = await response.text();
+                    console.error(`❌ HTTP Error ${response.status}: ${errorText}`);
                     setFoods([]);
                     setLoading(false);
                     return;
                 }
 
-                const result = await response.json();
+                const result: BackendRecommendationResponse = await response.json();
                 console.log("✅ Recommendations loaded:", result);
 
-                // ✅ 1️⃣ รองรับกรณีที่ Backend อาจส่งข้อมูลห่อไว้ใน key 'data' หรือส่งโดยตรง
+                // 2️⃣ เผื่อกรณี Backend ห่อข้อมูลไว้ใน object ที่ชื่อ 'data'
                 const payload = result.data || result;
-                
-                // ✅ 2️⃣ ตรวจสอบว่ามี recommended_dishes หรือ beverages
-                if (payload.recommended_dishes || payload.beverages) {
-                    // ✅ 3️⃣ รวมทั้ง recommended_dishes และ beverages เข้าด้วยกัน
-                    const dishes = Array.isArray(payload.recommended_dishes) ? payload.recommended_dishes : [];
-                    const drinks = Array.isArray(payload.beverages) ? payload.beverages : [];
+                console.log("📦 Payload:", payload);
+
+                if (payload && (payload.recommended_dishes || payload.beverages)) {
                     
-                    const allFoods = [...dishes, ...drinks];
+                    // 4️⃣ นำข้อมูลอาหารคาวและเครื่องดื่มมารวมกัน แล้วแปลงรูปแบบ Key
+                    const dishes: FoodFromDB[] = Array.isArray(payload.recommended_dishes) 
+                        ? payload.recommended_dishes.map(formatFoodData) 
+                        : [];
+                        
+                    const drinks: FoodFromDB[] = Array.isArray(payload.beverages) 
+                        ? payload.beverages.map(formatBeverageData)
+                        : [];
+                    
+                    const allFoods: FoodFromDB[] = [...dishes, ...drinks];
                     setFoods(allFoods);
                     
                     console.log(`✅ Total foods loaded: ${allFoods.length}`);
                     console.log(`   - Dishes: ${dishes.length}`);
                     console.log(`   - Drinks: ${drinks.length}`);
+                    console.log("Sample dish:", dishes[0]);
+                    console.log("Sample drink:", drinks[0]);
                 } else {
-                    console.warn("⚠️ No recommended_dishes or beverages in response");
-                    console.log("Response structure:", Object.keys(payload));
+                    console.warn("⚠️ No valid food data in response");
+                    console.warn("Payload keys:", payload ? Object.keys(payload) : "null");
                     setFoods([]);
                 }
             } catch (error) {
                 console.error("❌ Error fetching recommended foods:", error);
+                if (error instanceof TypeError) {
+                    console.error("   Error type: Network/CORS Error");
+                } else if (error instanceof Error) {
+                    console.error("   Error message:", error.message);
+                }
                 setFoods([]);
             } finally {
                 setLoading(false);
@@ -143,15 +207,15 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
             console.log("⏳ Waiting for BMI data...");
             setLoading(false);
         }
-    // ✅ เพิ่ม user?.id ใน dependency array เพื่อให้ fetch อีกครั้งเมื่อ user เปลี่ยน
+    // 🛑 อย่าลืมใส่ user?.id ใน Dependency Array ด้วย
     }, [bmi, user?.id]);
 
-    // ✅ Filter by activeCategory - ใช้ food.category (lowercase) ตามที่ Backend ส่อง
-    let filteredFoods = foods.filter(food => food.category === activeCategory);
+    // ✅ Filter by activeCategory
+    let filteredFoods: FoodFromDB[] = foods.filter(food => food.category === activeCategory);
 
     // ✅ Filter by allergies
     if (user?.health_info && user.health_info.trim() !== "") {
-        const allergicKeywords = user.health_info
+        const allergicKeywords: string[] = user.health_info
             .toLowerCase()
             .split(/[,、，\s+]/)
             .map(keyword => keyword.trim())
@@ -163,7 +227,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
         });
     }
 
-    const getBmiStatusLabel = () => {
+    const getBmiStatusLabel = (): string => {
         if (!bmi || bmi <= 0) return "รอข้อมูล BMI";
         if (bmi < 18.5) return "น้ำหนักต่ำกว่าเกณฑ์ (under)";
         if (bmi >= 18.5 && bmi < 23.0) return "สุขภาพดี เกณฑ์ปกติ (normal)";
@@ -171,7 +235,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
         return "อ้วนระดับอันตราย (severe-over)";
     };
 
-    const getBmiNumber = () => {
+    const getBmiNumber = (): string => {
         if (!bmi || bmi <= 0) return "-";
         return bmi.toFixed(2);
     };
