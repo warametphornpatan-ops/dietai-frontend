@@ -25,13 +25,13 @@ interface FoodRecommendationsProps {
 }
 
 interface FoodFromDB {
+    id: string; // ✅ เพิ่ม unique ID เพื่อป้องกัน duplicates
     name: string;
     calories: number;
     category: string;
     image_url: string;
 }
 
-// ✅ Interface กลาง ครอบคลุมฟิลด์ทั้งหมดที่ Backend อาจจะส่งมา
 interface ApiFoodItem {
     MenuID?: number;
     menu_id?: number;
@@ -48,7 +48,6 @@ interface ApiFoodItem {
     image_url?: string;
 }
 
-// ✅ Interface สำหรับรับ Response รองรับทั้งรูปแบบเก่าและใหม่
 interface BackendRecommendationResponse {
     success?: boolean;
     bmi?: number;
@@ -104,21 +103,46 @@ const normalizeCategory = (rawCategory: string): string => {
     return "อาหารคาว";
 };
 
-// ✅ แปลงข้อมูลอาหารคาว/ผลไม้ (recommended_dishes) — ใช้ Category จริงจาก Backend
-const formatDishData = (item: ApiFoodItem): FoodFromDB => ({
-    name: item.ThaiName || item.name || item.food_thai || "ไม่มีชื่อเมนู",
-    calories: item.Calories || item.calories || 0,
-    category: normalizeCategory(item.Category || item.category || "อาหารคาว"),
-    image_url: item.image_url || "/foods/default-food.jpg"
-});
+// ✅ แปลงข้อมูลอาหารคาว/ผลไม้ (recommended_dishes)
+const formatDishData = (item: ApiFoodItem, index: number): FoodFromDB => {
+    const menuId = item.MenuID || item.menu_id || item.id || index;
+    return {
+        id: `dish-${menuId}`, // ✅ สร้าง unique ID
+        name: item.ThaiName || item.name || item.food_thai || "ไม่มีชื่อเมนู",
+        calories: item.Calories || item.calories || 0,
+        category: normalizeCategory(item.Category || item.category || "อาหารคาว"),
+        image_url: item.image_url || "/foods/default-food.jpg"
+    };
+};
 
-// ✅ แปลงข้อมูลเครื่องดื่ม (beverages) — บังคับหมวดเป็น "เครื่องดื่ม" เสมอ
-const formatBeverageData = (item: ApiFoodItem): FoodFromDB => ({
-    name: item.ThaiName || item.name || item.food_thai || "ไม่มีชื่อเมนู",
-    calories: item.Calories || item.calories || 0,
-    category: "เครื่องดื่ม",
-    image_url: item.image_url || "/foods/default-food.jpg"
-});
+// ✅ แปลงข้อมูลเครื่องดื่ม (beverages)
+const formatBeverageData = (item: ApiFoodItem, index: number): FoodFromDB => {
+    const menuId = item.MenuID || item.menu_id || item.id || index;
+    return {
+        id: `beverage-${menuId}`, // ✅ สร้าง unique ID
+        name: item.ThaiName || item.name || item.food_thai || "ไม่มีชื่อเมนู",
+        calories: item.Calories || item.calories || 0,
+        category: "เครื่องดื่ม",
+        image_url: item.image_url || "/foods/default-food.jpg"
+    };
+};
+
+// ✅ ฟังก์ชันลบ Duplicates โดยใช้ Set
+const removeDuplicates = (foods: FoodFromDB[]): FoodFromDB[] => {
+    const seen = new Set<string>();
+    const unique: FoodFromDB[] = [];
+    
+    for (const food of foods) {
+        const key = `${food.name.toLowerCase()}-${food.category}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(food);
+        }
+    }
+    
+    console.log(`📊 Duplicates removed: ${foods.length} → ${unique.length}`);
+    return unique;
+};
 
 export default function FoodRecommendations({ user }: FoodRecommendationsProps) {
     const [activeCategory, setActiveCategory] = useState<"อาหารคาว" | "ผลไม้" | "เครื่องดื่ม">("อาหารคาว");
@@ -145,7 +169,6 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
             try {
                 console.log("🔵 Fetching recommendations...");
 
-                // ✅ ยิง Backend โดยตรง พร้อมแนบ JWT token (ข้าม route.ts ตัวกลางที่ format ผิด)
                 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
                 const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
@@ -173,27 +196,38 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                 // ✅ รูปแบบหลัก: Backend ส่ง { recommended_dishes, beverages }
                 if (result.recommended_dishes || result.beverages) {
                     const dishes = Array.isArray(result.recommended_dishes)
-                        ? result.recommended_dishes.map(formatDishData)
+                        ? result.recommended_dishes.map((item, idx) => formatDishData(item, idx))
                         : [];
                     const drinks = Array.isArray(result.beverages)
-                        ? result.beverages.map(formatBeverageData)
+                        ? result.beverages.map((item, idx) => formatBeverageData(item, idx))
                         : [];
+                    
                     allFoods = [...dishes, ...drinks];
-
                     console.log(`✅ Dishes: ${dishes.length}, Drinks: ${drinks.length}`);
                 }
                 // ✅ รูปแบบสำรอง: ส่งมาเป็น { data: [...] }
                 else if (Array.isArray(result.data)) {
-                    allFoods = result.data.map(formatDishData);
+                    allFoods = result.data.map((item, idx) => formatDishData(item, idx));
                 }
                 // ✅ รูปแบบสำรอง: ส่งมาเป็น Array ตรง ๆ
                 else if (Array.isArray(result)) {
-                    allFoods = (result as unknown as ApiFoodItem[]).map(formatDishData);
+                    allFoods = (result as unknown as ApiFoodItem[]).map((item, idx) => formatDishData(item, idx));
                 }
 
-                if (allFoods.length > 0) {
-                    setFoods(allFoods);
-                    console.log(`✅ Total foods loaded: ${allFoods.length}`);
+                // ✅ ลบ Duplicates ก่อน setFoods
+                const uniqueFoods = removeDuplicates(allFoods);
+
+                if (uniqueFoods.length > 0) {
+                    setFoods(uniqueFoods);
+                    console.log(`✅ Total foods loaded: ${uniqueFoods.length}`);
+                    
+                    // ✅ Log category breakdown
+                    const breakdown = {
+                        อาหารคาว: uniqueFoods.filter(f => f.category === "อาหารคาว").length,
+                        ผลไม้: uniqueFoods.filter(f => f.category === "ผลไม้").length,
+                        เครื่องดื่ม: uniqueFoods.filter(f => f.category === "เครื่องดื่ม").length,
+                    };
+                    console.log("📋 Category breakdown:", breakdown);
                 } else {
                     console.warn("⚠️ No valid food data found in the response payload");
                     setFoods([]);
@@ -318,9 +352,9 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                         </div>
                     ) : filteredFoods.length > 0 ? (
                         <div className="flex md:grid md:grid-cols-2 lg:grid-cols-2 gap-3 overflow-x-auto pb-2 md:pb-0 md:overflow-visible">
-                            {filteredFoods.map((food, index) => (
+                            {filteredFoods.map((food) => (
                                 <div
-                                    key={`${food.name}-${index}`}
+                                    key={food.id} // ✅ ใช้ unique ID แทน index
                                     className="min-w-[260px] md:min-w-0 bg-white border border-gray-100 rounded-xl p-3 flex gap-3 hover:shadow-md transition-all group cursor-pointer"
                                 >
                                     <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-emerald-50 relative flex items-center justify-center text-2xl font-bold">
