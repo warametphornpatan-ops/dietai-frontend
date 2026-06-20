@@ -123,7 +123,7 @@ export default function LoginPage() {
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportForm, setSupportForm] = useState({
     contact_info: "",
-    name: "",                                    // ✅ เพิ่ม field ชื่อ-นามสกุล
+    name: "",
     request_type: "forgot_username" as RequestType,
     description: "",
   });
@@ -143,7 +143,6 @@ export default function LoginPage() {
 
     setCheckingOrg(true);
     try {
-      // ✅ FIXED: API_URL already has /api, so just use /organizations/{code}
       const res = await fetch(`${API_URL}/api/organizations/${code}`);
       if (!res.ok) {
         alert("ไม่พบรหัสหน่วยงานนี้ในระบบ โปรดตรวจสอบอีกครั้ง");
@@ -164,7 +163,6 @@ export default function LoginPage() {
   async function handleSupportSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // ✅ เพิ่ม validate name
     if (!supportForm.contact_info.trim() || !supportForm.name.trim() || !supportForm.description.trim()) {
       alert("กรุณากรอกข้อมูลติดต่อกลับ ชื่อ-นามสกุล และรายละเอียดปัญหา");
       return;
@@ -172,13 +170,12 @@ export default function LoginPage() {
 
     setSendingSupport(true);
     try {
-      // ✅ FIXED: API_URL already has /api, so just use /support-requests
       const res = await fetch(`${API_URL}/api/support-requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: supportForm.contact_info.trim(),
-          name: supportForm.name.trim(),         // ✅ ส่ง name ไปด้วย
+          name: supportForm.name.trim(),
           request_type: supportForm.request_type,
           description: supportForm.description.trim(),
         }),
@@ -188,7 +185,7 @@ export default function LoginPage() {
         alert("✅ ส่งคำร้องเรียนสำเร็จ! เจ้าหน้าที่จะติดต่อกลับในเร็วๆ นี้");
         setSupportForm({
           contact_info: "",
-          name: "",                              // ✅ reset name ด้วย
+          name: "",
           request_type: "forgot_username",
           description: "",
         });
@@ -234,7 +231,6 @@ export default function LoginPage() {
       let detectedRole = "user";
 
       if (loginType === "user") {
-        // ✅ FIXED: API_URL already has /api, so just use /user/login
         const res = await fetch(`${API_URL}/api/user/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -252,7 +248,6 @@ export default function LoginPage() {
         detectedRole = "user";
       } else {
         // Try doctor first
-        // ✅ FIXED: API_URL already has /api, so just use /doctor/login
         let res = await fetch(`${API_URL}/api/doctors/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -265,7 +260,6 @@ export default function LoginPage() {
           detectedRole = "doctor";
         } else {
           // Try admin
-          // ✅ FIXED: API_URL already has /api, so just use /admin/login
           res = await fetch(`${API_URL}/api/admin/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -548,26 +542,43 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Links */}
+        {/* ✅ Links - UPDATED with conditional reset password links */}
         <div className="mt-5 pt-4 flex flex-col gap-1.5 text-center" style={{ borderTop: "1px solid #e8f5f0" }}>
-          <p className="text-xs" style={{ color: COLOR.secondary }}>
-            สำหรับผู้ใช้งานทั่วไป?{" "}
-            <Link href="/register" className="font-medium hover:underline" style={{ color: COLOR.primary }}>
-              สมัครสมาชิก
-            </Link>
-          </p>
-          <p className="text-xs" style={{ color: COLOR.secondary }}>
-            สำหรับเจ้าหน้าที่?{" "}
-            <Link href="/admin/register" className="font-medium hover:underline" style={{ color: COLOR.primary }}>
-              ลงทะเบียนบุคลากร
-            </Link>
-          </p>
-          <p className="text-xs" style={{ color: COLOR.secondary }}>
-            ลืมรหัสผ่าน?{" "}
-            <Link href="/reset-password" className="font-medium hover:underline" style={{ color: COLOR.primary }}>
-              รีเซ็ตรหัส
-            </Link>
-          </p>
+          {loginType === "user" && (
+            <p className="text-xs" style={{ color: COLOR.secondary }}>
+              สำหรับผู้ใช้งานทั่วไป?{" "}
+              <Link href="/register" className="font-medium hover:underline" style={{ color: COLOR.primary }}>
+                สมัครสมาชิก
+              </Link>
+            </p>
+          )}
+
+          {loginType === "staff" && (
+            <p className="text-xs" style={{ color: COLOR.secondary }}>
+              สำหรับเจ้าหน้าที่?{" "}
+              <Link href="/admin/register" className="font-medium hover:underline" style={{ color: COLOR.primary }}>
+                ลงทะเบียนบุคลากร
+              </Link>
+            </p>
+          )}
+
+          {/* ✅ Conditional Reset Password Links */}
+          {loginType === "user" ? (
+            <p className="text-xs" style={{ color: COLOR.secondary }}>
+              ลืมรหัสผ่าน?{" "}
+              <Link href="/reset-password/user" className="font-medium hover:underline" style={{ color: COLOR.primary }}>
+                รีเซ็ตรหัสผ่าน
+              </Link>
+            </p>
+          ) : (
+            <p className="text-xs" style={{ color: COLOR.secondary }}>
+              ลืมรหัสผ่าน?{" "}
+              <Link href="/reset-password/staff" className="font-medium hover:underline" style={{ color: COLOR.primary }}>
+                รีเซ็ตรหัสผ่าน
+              </Link>
+            </p>
+          )}
+
           <p className="text-xs" style={{ color: COLOR.secondary }}>
             ลืมชื่อผู้ใช้ / พบปัญหา?{" "}
             <button
@@ -625,7 +636,7 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* ✅ ชื่อ-นามสกุล (field ใหม่) */}
+              {/* Name */}
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: COLOR.darkLabel }}>
                   👤 ชื่อ-นามสกุล
