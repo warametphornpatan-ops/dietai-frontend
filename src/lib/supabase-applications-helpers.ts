@@ -164,7 +164,6 @@ export async function getPendingApplications(orgCode: string) {
 
 export async function approveDoctorApplication(applicationId: number) {
   try {
-    // ✅ Step 1: ดึง application data
     const { data: appData, error: fetchError } = await supabase
       .from('doctor_applications')
       .select('*')
@@ -173,7 +172,6 @@ export async function approveDoctorApplication(applicationId: number) {
 
     if (fetchError) throw fetchError;
 
-    // ✅ Step 2: Insert ไป doctors table
     const { data: doctorData, error: insertError } = await supabase
       .from('doctors')
       .insert({
@@ -193,13 +191,29 @@ export async function approveDoctorApplication(applicationId: number) {
 
     if (insertError) throw insertError;
 
-    // ✅ Step 3: ลบจาก doctor_applications
     const { error: deleteError } = await supabase
       .from('doctor_applications')
       .delete()
       .eq('id', applicationId);
 
     if (deleteError) throw deleteError;
+
+    // ✅ เพิ่มตรงนี้ — ส่งอีเมลแจ้งเตือนหลังอนุมัติสำเร็จ (ไม่ block ถ้าพลาด)
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+      await fetch(`${API_URL}/api/admins/doctors/notify-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: appData.email,
+          full_name: `${appData.first_name} ${appData.last_name}`,
+          result: "approved",
+        }),
+      });
+    } catch (emailErr) {
+      console.error("ส่งอีเมลแจ้งเตือนไม่สำเร็จ:", emailErr);
+      // ไม่ throw — ไม่อยากให้การส่งอีเมลพังกระทบผลลัพธ์การอนุมัติ
+    }
 
     return { success: true, data: doctorData };
   } catch (error) {
@@ -216,7 +230,15 @@ export async function approveDoctorApplication(applicationId: number) {
 
 export async function rejectDoctorApplication(applicationId: number, reason?: string) {
   try {
-    // ✅ Option 1: Delete เลย (ไม่เก็บประวัติ)
+    // ✅ ดึงข้อมูลก่อน delete เพื่อเอาไปส่งอีเมล
+    const { data: appData, error: fetchError } = await supabase
+      .from('doctor_applications')
+      .select('email, first_name, last_name')
+      .eq('id', applicationId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
     const { error } = await supabase
       .from('doctor_applications')
       .delete()
@@ -224,15 +246,21 @@ export async function rejectDoctorApplication(applicationId: number, reason?: st
 
     if (error) throw error;
 
-    // ✅ Option 2: Update status เป็น rejected (เก็บประวัติ)
-    // const { error } = await supabase
-    //   .from('doctor_applications')
-    //   .update({
-    //     status: 'rejected',
-    //     rejection_reason: reason,
-    //     updated_at: new Date().toISOString(),
-    //   })
-    //   .eq('id', applicationId);
+    // ✅ เพิ่มตรงนี้ — ส่งอีเมลแจ้งเตือนหลังปฏิเสธสำเร็จ
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+      await fetch(`${API_URL}/api/admins/doctors/notify-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: appData.email,
+          full_name: `${appData.first_name} ${appData.last_name}`,
+          result: "rejected",
+        }),
+      });
+    } catch (emailErr) {
+      console.error("ส่งอีเมลแจ้งเตือนไม่สำเร็จ:", emailErr);
+    }
 
     return { success: true };
   } catch (error) {
