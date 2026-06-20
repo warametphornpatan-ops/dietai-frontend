@@ -119,11 +119,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // ✅ Reset Password Modal
+  const [showResetModal, setShowResetModal] = useState(false);
+
   // Support Modal
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportForm, setSupportForm] = useState({
     contact_info: "",
-    name: "",                                    // ✅ เพิ่ม field ชื่อ-นามสกุล
+    name: "",
     request_type: "forgot_username" as RequestType,
     description: "",
   });
@@ -143,7 +146,6 @@ export default function LoginPage() {
 
     setCheckingOrg(true);
     try {
-      // ✅ FIXED: API_URL already has /api, so just use /organizations/{code}
       const res = await fetch(`${API_URL}/api/organizations/${code}`);
       if (!res.ok) {
         alert("ไม่พบรหัสหน่วยงานนี้ในระบบ โปรดตรวจสอบอีกครั้ง");
@@ -164,7 +166,6 @@ export default function LoginPage() {
   async function handleSupportSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // ✅ เพิ่ม validate name
     if (!supportForm.contact_info.trim() || !supportForm.name.trim() || !supportForm.description.trim()) {
       alert("กรุณากรอกข้อมูลติดต่อกลับ ชื่อ-นามสกุล และรายละเอียดปัญหา");
       return;
@@ -172,13 +173,12 @@ export default function LoginPage() {
 
     setSendingSupport(true);
     try {
-      // ✅ FIXED: API_URL already has /api, so just use /support-requests
       const res = await fetch(`${API_URL}/api/support-requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: supportForm.contact_info.trim(),
-          name: supportForm.name.trim(),         // ✅ ส่ง name ไปด้วย
+          name: supportForm.name.trim(),
           request_type: supportForm.request_type,
           description: supportForm.description.trim(),
         }),
@@ -188,7 +188,7 @@ export default function LoginPage() {
         alert("✅ ส่งคำร้องเรียนสำเร็จ! เจ้าหน้าที่จะติดต่อกลับในเร็วๆ นี้");
         setSupportForm({
           contact_info: "",
-          name: "",                              // ✅ reset name ด้วย
+          name: "",
           request_type: "forgot_username",
           description: "",
         });
@@ -234,7 +234,6 @@ export default function LoginPage() {
       let detectedRole = "user";
 
       if (loginType === "user") {
-        // ✅ FIXED: API_URL already has /api, so just use /user/login
         const res = await fetch(`${API_URL}/api/user/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -252,7 +251,6 @@ export default function LoginPage() {
         detectedRole = "user";
       } else {
         // Try doctor first
-        // ✅ FIXED: API_URL already has /api, so just use /doctor/login
         let res = await fetch(`${API_URL}/api/doctors/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -265,7 +263,6 @@ export default function LoginPage() {
           detectedRole = "doctor";
         } else {
           // Try admin
-          // ✅ FIXED: API_URL already has /api, so just use /admin/login
           res = await fetch(`${API_URL}/api/admin/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -564,9 +561,14 @@ export default function LoginPage() {
           </p>
           <p className="text-xs" style={{ color: COLOR.secondary }}>
             ลืมรหัสผ่าน?{" "}
-            <Link href="/reset-password" className="font-medium hover:underline" style={{ color: COLOR.primary }}>
+            <button
+              type="button"
+              onClick={() => setShowResetModal(true)}
+              className="font-medium hover:underline focus:outline-none"
+              style={{ color: COLOR.primary }}
+            >
               รีเซ็ตรหัส
-            </Link>
+            </button>
           </p>
           <p className="text-xs" style={{ color: COLOR.secondary }}>
             ลืมชื่อผู้ใช้ / พบปัญหา?{" "}
@@ -581,6 +583,81 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* ✅ Reset Password Modal */}
+      {showResetModal && (
+        <div
+          className="fixed inset-0 flex items-center justify-center p-4 z-50"
+          style={{
+            background: "rgba(13, 79, 46, 0.35)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+          }}
+          onClick={() => setShowResetModal(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white p-6 rounded-3xl border shadow-2xl"
+            style={{ borderColor: "rgba(22,163,97,0.15)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold mb-1" style={{ color: COLOR.dark }}>
+              🔑 รีเซ็ตรหัสผ่าน
+            </h3>
+            <p className="text-xs mb-6" style={{ color: COLOR.secondary }}>
+              เลือกประเภทบัญชีของคุณ
+            </p>
+
+            <div className="flex gap-3">
+              {/* User Reset */}
+              <Link
+                href="/reset-password/user"
+                className="flex-1 p-4 rounded-2xl border-2 text-center transition-all duration-200 hover:shadow-lg"
+                style={{
+                  borderColor: COLOR.lightBorder,
+                  color: COLOR.dark,
+                }}
+                onClick={() => setShowResetModal(false)}
+              >
+                <div className="text-2xl mb-2">👤</div>
+                <div className="text-sm font-semibold">ผู้ใช้งาน</div>
+                <div className="text-xs" style={{ color: COLOR.secondary }}>
+                  บัญชีผู้ใช้ทั่วไป
+                </div>
+              </Link>
+
+              {/* Admin/Staff Reset */}
+              <Link
+                href="/reset-password/admin"
+                className="flex-1 p-4 rounded-2xl border-2 text-center transition-all duration-200 hover:shadow-lg"
+                style={{
+                  borderColor: COLOR.lightBorder,
+                  color: COLOR.dark,
+                }}
+                onClick={() => setShowResetModal(false)}
+              >
+                <div className="text-2xl mb-2">🏥</div>
+                <div className="text-sm font-semibold">เจ้าหน้าที่</div>
+                <div className="text-xs" style={{ color: COLOR.secondary }}>
+                  บัญชีเจ้าหน้าที่/แอดมิน
+                </div>
+              </Link>
+            </div>
+
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setShowResetModal(false)}
+              className="w-full mt-4 py-2.5 rounded-xl border text-sm font-semibold transition-all"
+              style={{
+                color: COLOR.secondary,
+                borderColor: COLOR.lightBorder,
+              }}
+            >
+              ยกเลิก
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Support Modal */}
       {showSupportModal && (
@@ -625,7 +702,7 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* ✅ ชื่อ-นามสกุล (field ใหม่) */}
+              {/* ชื่อ-นามสกุล */}
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: COLOR.darkLabel }}>
                   👤 ชื่อ-นามสกุล
