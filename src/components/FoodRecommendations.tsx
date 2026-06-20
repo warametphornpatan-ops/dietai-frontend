@@ -86,19 +86,31 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
     // ✅ Fetch from /api/foods/recommendations
     useEffect(() => {
         const fetchRecommendedFoods = async () => {
+            // ป้องกันการยิง API ถ้ายังไม่มีข้อมูล User
+            if (!user?.id) return;
+
             setLoading(true);
             try {
                 console.log("🔵 Fetching from /api/foods/recommendations...");
-                const response = await fetch(`/api/foods/recommendations`);
+                // 1️⃣ แนบ userId ไปด้วยเพื่อให้ Backend รู้ว่าต้องคัดกรองอาหารของใคร
+                const response = await fetch(`/api/foods/recommendations?userId=${user.id}`);
                 const result = await response.json();
 
                 console.log("✅ Recommendations loaded:", result);
 
-                // ✅ Backend ส่อง recommended_dishes ตรง ๆ
-                if (result.recommended_dishes && Array.isArray(result.recommended_dishes)) {
-                    setFoods(result.recommended_dishes);
+                // 2️⃣ รองรับกรณีที่ Backend อาจจะส่งข้อมูลห่อไว้ใน key 'data'
+                const payload = result.data || result;
+
+                if (payload.recommended_dishes || payload.beverages) {
+                    // 3️⃣ รวมทั้งอาหารคาว/ผลไม้ (recommended_dishes) และ เครื่องดื่ม (beverages) เข้าด้วยกัน
+                    const dishes = Array.isArray(payload.recommended_dishes) ? payload.recommended_dishes : [];
+                    const drinks = Array.isArray(payload.beverages) ? payload.beverages : [];
+
+                    const allFoods = [...dishes, ...drinks];
+                    setFoods(allFoods);
+                    console.log("✅ Total foods set to state:", allFoods);
                 } else {
-                    console.warn("⚠️ No recommended_dishes in response");
+                    console.warn("⚠️ No recommended_dishes or beverages in response");
                     setFoods([]);
                 }
             } catch (error) {
@@ -114,7 +126,8 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
         } else {
             setLoading(false);
         }
-    }, [bmi]);
+        // ✅ อย่าลืมเพิ่ม user?.id ใน Dependency array
+    }, [bmi, user?.id]);
 
     // ✅ Filter by activeCategory - ใช้ food.category (lowercase) ตามที่ Backend ส่อง
     let filteredFoods = foods.filter(food => food.category === activeCategory);
@@ -166,11 +179,10 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                             <button
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
-                                className={`text-[10px] px-2.5 py-1 rounded-full transition-all border ${
-                                    activeCategory === cat.id
+                                className={`text-[10px] px-2.5 py-1 rounded-full transition-all border ${activeCategory === cat.id
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold"
                                         : "bg-white text-gray-500 border-transparent hover:bg-gray-50"
-                                }`}
+                                    }`}
                             >
                                 {cat.name}
                             </button>
