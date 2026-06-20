@@ -591,35 +591,34 @@ export default function AdminDashboardPage() {
   async function handleSaveEditUser(e: React.FormEvent) {
     e.preventDefault();
     if (!editingUser) return;
-    if (!editUserForm.name.trim() || !editUserForm.email.trim()) {
-      alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+
+    // ✅ ส่งเฉพาะ field ที่กรอก ถ้าว่างทั้งคู่ก็ไม่ทำอะไร
+    const body: Record<string, string> = {};
+    if (editUserForm.name.trim()) body.name = editUserForm.name.trim();
+    if (editUserForm.email.trim()) body.email = editUserForm.email.trim();
+
+    if (Object.keys(body).length === 0) {
+      alert("กรุณากรอกข้อมูลที่ต้องการแก้ไขอย่างน้อย 1 ช่อง");
       return;
     }
 
     setEditUserLoading(true);
     try {
-      // ✅ เพิ่ม /api
       const res = await fetch(`${API_URL}/api/users/${editingUser.id}`, {
         method: "PUT",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          name: editUserForm.name.trim(),
-          email: editUserForm.email.trim(),
-        }),
+        body: JSON.stringify(body),
       });
-
       if (!res.ok) {
         const d: { detail?: string } = await res.json();
         alert(d.detail || "แก้ไขข้อมูลไม่สำเร็จ");
         return;
       }
-
       alert("✅ แก้ไขข้อมูลสำเร็จ");
       handleCloseEditUser();
       fetchAllUsersData(adminOrgCode);
     } catch (e) {
       alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
-      console.error(e);
     } finally {
       setEditUserLoading(false);
     }
@@ -1250,7 +1249,7 @@ export default function AdminDashboardPage() {
             <form onSubmit={handleSaveEditUser} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <Field label="ชื่อ-นามสกุล">
                 <SI
-                  placeholder={`คงค่าเดิม: ${editingUser.name}`}
+                  placeholder={editingUser.name || "ไม่มี"}   // ✅ เอา "คงค่าเดิม:" ออก
                   value={editUserForm.name}
                   onChange={e => setEditUserForm(p => ({ ...p, name: e.target.value }))}
                 />
@@ -1258,7 +1257,15 @@ export default function AdminDashboardPage() {
               <Field label="อีเมล">
                 <SI
                   type="email"
-                  placeholder={`คงค่าเดิม: ${editingUser.email || "ไม่มี"}`}
+                  placeholder={editingUser.email || "ไม่มี"}  // ✅ เอา "คงค่าเดิม:" ออก
+                  value={editUserForm.email}
+                  onChange={e => setEditUserForm(p => ({ ...p, email: e.target.value }))}
+                />
+              </Field>
+              <Field label="อีเมล">
+                <SI
+                  type="email"
+                  placeholder={`${editingUser.email || "ไม่มี"}`}
                   value={editUserForm.email}
                   onChange={e => setEditUserForm(p => ({ ...p, email: e.target.value }))}
                 />
