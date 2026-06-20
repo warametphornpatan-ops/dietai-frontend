@@ -380,7 +380,7 @@ export async function checkCitizenIdExists(citizenId: string) {
     // 1. เช็คในตาราง doctors
     const { data: doctors, error: dError } = await supabase
       .from('doctors')
-      .select('id')
+      .select('citizen_id')          // ✅ เปลี่ยนจาก 'id' เป็น 'citizen_id'
       .eq('citizen_id', citizenId)
       .limit(1);
     if (dError) throw dError;
@@ -388,7 +388,7 @@ export async function checkCitizenIdExists(citizenId: string) {
     // 2. เช็คในตาราง admins
     const { data: admins, error: aError } = await supabase
       .from('admins')
-      .select('id')
+      .select('citizen_id')          // ✅ เปลี่ยนจาก 'id' เป็น 'citizen_id' (ตาราง admins ไม่มีคอลัมน์ id)
       .eq('citizen_id', citizenId)
       .limit(1);
     if (aError) throw aError;
@@ -396,21 +396,21 @@ export async function checkCitizenIdExists(citizenId: string) {
     // 3. เช็คในตาราง doctor_applications (คำขอที่รออนุมัติ)
     const { data: apps, error: appError } = await supabase
       .from('doctor_applications')
-      .select('id')
+      .select('citizen_id')          // ✅ เปลี่ยนจาก 'id' เป็น 'citizen_id'
       .eq('citizen_id', citizenId)
       .limit(1);
-    if (appError && appError.code !== '42P01') throw appError; // เผื่อกรณีไม่มีตาราง doctor_applications ให้ข้ามไป
+    if (appError && appError.code !== '42P01') throw appError;
 
-    const isDuplicate = (doctors && doctors.length > 0) || 
-                        (admins && admins.length > 0) || 
+    const isDuplicate = (doctors && doctors.length > 0) ||
+                        (admins && admins.length > 0) ||
                         (apps && apps.length > 0);
 
     return { success: true, isDuplicate };
   } catch (error) {
-    return { 
-      success: false, 
-      isDuplicate: false, 
-      error: error instanceof Error ? error.message : 'Check failed' 
+    return {
+      success: false,
+      isDuplicate: false,
+      error: error instanceof Error ? error.message : 'Check failed'
     };
   }
 }
