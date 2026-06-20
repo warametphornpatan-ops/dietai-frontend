@@ -17,23 +17,19 @@ interface User {
     target_carbs?: number;
     target_protein?: number;
     target_fat?: number;
-    health_info?: string; // รองรับข้อมูลการแพ้อาหารจากระบบหลังบ้าน
+    health_info?: string;
 }
 
 interface FoodRecommendationsProps {
     user: User | null;
 }
 
+// ✅ Updated: Match Backend response format
 interface FoodFromDB {
-    MenuID: number;
-    menuid?: number;
-    id?: number;
-    ThaiName: string;
-    EnglishName: string;
-    Calories: number;
-    Nutrition: string;
-    Category: string;
-    bmi_group: string;
+    name: string;
+    calories: number;
+    category: string;
+    image_url: string;
 }
 
 const getBmiRemark = (bmi: number) => {
@@ -87,30 +83,26 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
         { id: "เครื่องดื่ม", name: "🥤 เครื่องดื่ม" },
     ] as const;
 
-    const getCurrentType = (): "under" | "normal" | "over" | "severe-over" => {
-        if (!bmi || bmi <= 0) return "normal";
-        if (bmi < 18.5) return "under";
-        if (bmi >= 18.5 && bmi < 23.0) return "normal";
-        if (bmi >= 23.0 && bmi < 25.0) return "over";
-        return "severe-over";
-    };
-
+    // ✅ Fetch from /api/foods/recommendations
     useEffect(() => {
         const fetchRecommendedFoods = async () => {
             setLoading(true);
             try {
-                // ✅ Direct fetch without bmiStatus (Backend gets it from current_user)
+                console.log("🔵 Fetching from /api/foods/recommendations...");
                 const response = await fetch(`/api/foods/recommendations`);
                 const result = await response.json();
 
-                // ✅ Changed to access result.recommended_dishes instead of result.data
+                console.log("✅ Recommendations loaded:", result);
+
+                // ✅ Backend ส่อง recommended_dishes ตรง ๆ
                 if (result.recommended_dishes && Array.isArray(result.recommended_dishes)) {
                     setFoods(result.recommended_dishes);
                 } else {
+                    console.warn("⚠️ No recommended_dishes in response");
                     setFoods([]);
                 }
             } catch (error) {
-                console.error("Error fetching recommended foods:", error);
+                console.error("❌ Error fetching recommended foods:", error);
                 setFoods([]);
             } finally {
                 setLoading(false);
@@ -119,23 +111,24 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
 
         if (bmi > 0) {
             fetchRecommendedFoods();
+        } else {
+            setLoading(false);
         }
     }, [bmi]);
 
-    // --- ส่วนคัดกรองเมนูตามประเภทและตรวจสอบประวัติการแพ้อาหาร ---
-    let filteredFoods = foods.filter(food => food.Category === activeCategory);
+    // ✅ Filter by activeCategory - ใช้ food.category (lowercase) ตามที่ Backend ส่อง
+    let filteredFoods = foods.filter(food => food.category === activeCategory);
 
+    // ✅ Filter by allergies
     if (user?.health_info && user.health_info.trim() !== "") {
-        // แยกคำกรณีผู้ใช้ใส่คำแพ้อาหารหลายตัว เช่น "กุ้ง, ปลา, นม"
         const allergicKeywords = user.health_info
             .toLowerCase()
             .split(/[,、，\s+]/)
             .map(keyword => keyword.trim())
             .filter(keyword => keyword.length > 0);
 
-        // คัดเอาเฉพาะอาหารที่ไม่มีคำที่แพ้อยู่ในชื่อเมนูภาษาไทยและภาษาอังกฤษ
         filteredFoods = filteredFoods.filter(food => {
-            const foodNameText = `${food.ThaiName} ${food.EnglishName || ""}`.toLowerCase();
+            const foodNameText = `${food.name || ""}`.toLowerCase();
             return !allergicKeywords.some(keyword => foodNameText.includes(keyword));
         });
     }
@@ -161,7 +154,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                         <CardTitle className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                            💡 แนะนำอาหาร (คัดกรองที่มีข้อมูลโภชนาการ)
+                            💡 แนะนำอาหาร (คัดกรองตามเกณฑ์ BMI)
                         </CardTitle>
                         <p className="text-[11px] text-emerald-600 font-medium mt-0.5">
                             BMI: {getBmiNumber()} • Status: {getBmiStatusLabel()}
@@ -173,10 +166,11 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                             <button
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
-                                className={`text-[10px] px-2.5 py-1 rounded-full transition-all border ${activeCategory === cat.id
-                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold"
-                                    : "bg-white text-gray-500 border-transparent hover:bg-gray-50"
-                                    }`}
+                                className={`text-[10px] px-2.5 py-1 rounded-full transition-all border ${
+                                    activeCategory === cat.id
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold"
+                                        : "bg-white text-gray-500 border-transparent hover:bg-gray-50"
+                                }`}
                             >
                                 {cat.name}
                             </button>
@@ -184,7 +178,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                     </div>
                 </div>
 
-                {/* กล่องแจ้งเตือนคำแนะนำตามกลุ่ม BMI */}
+                {/* BMI Remark Box */}
                 {remark && (
                     <div className={`mt-4 p-3 rounded-xl border border-white/50 shadow-sm flex gap-3 items-start text-sm leading-relaxed ${remark.bgColor} ${remark.textColor}`}>
                         <span className="text-lg">{remark.icon}</span>
@@ -194,22 +188,16 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                     </div>
                 )}
 
-                {/* 🚫 กล่องแจ้งเตือนรายการแพ้อาหารและการคัดกรองอัตโนมัติ */}
+                {/* Allergy Warning Box */}
                 {user?.health_info && user.health_info.trim() !== "" && (
                     <div className="mt-3 p-3 rounded-xl border border-rose-100 bg-rose-50/70 text-rose-700 shadow-sm flex gap-3 items-start text-sm leading-relaxed">
                         <span className="text-lg">🚫</span>
                         <div>
                             <p className="font-bold mb-0.5">
                                 ⚠️ การแพ้อาหารของคุณ:{" "}
-                                <span
-                                    spellCheck="false"
-                                    lang="zxx"
-                                    className="font-extrabold text-rose-800"
-                                >
+                                <span className="font-extrabold text-rose-800">
                                     {user.health_info}
                                 </span>
-                            </p>
-                            <p className="text-[11px] text-rose-600/90 font-medium">
                             </p>
                         </div>
                     </div>
@@ -221,7 +209,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
             </CardHeader>
 
             <CardContent className="pt-4 flex flex-col gap-6">
-                {/* 1. ส่วนแสดงผลรายการอาหารแนะนำ */}
+                {/* Food List */}
                 <div>
                     {loading ? (
                         <div className="text-center py-8 text-gray-400 text-sm animate-pulse">
@@ -229,72 +217,43 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                         </div>
                     ) : filteredFoods.length > 0 ? (
                         <div className="flex md:grid md:grid-cols-2 lg:grid-cols-2 gap-3 overflow-x-auto pb-2 md:pb-0 md:overflow-visible">
-                            {filteredFoods.map((food, index) => {
-                                const currentMenuId = food.MenuID ?? food.menuid ?? food.id;
-
-                                let parsedNutrition = { protein: 0, carbohydrates: 0, fat: 0 };
-                                try {
-                                    if (food.Nutrition) {
-                                        const cleaned = typeof food.Nutrition === "string"
-                                            ? JSON.parse(food.Nutrition)
-                                            : food.Nutrition;
-
-                                        parsedNutrition = {
-                                            protein: cleaned.protein ?? cleaned.Protein ?? 0,
-                                            carbohydrates: cleaned.carbohydrates ?? cleaned.Carbohydrates ?? 0,
-                                            fat: cleaned.fat ?? cleaned.Fat ?? 0
-                                        };
-                                    }
-                                } catch (e) {
-                                    console.error("Error parsing nutrition for menu item:", currentMenuId);
-                                }
-
-                                return (
-                                    <div
-                                        key={`${currentMenuId}-${index}`}
-                                        className="min-w-[260px] md:min-w-0 bg-white border border-gray-100 rounded-xl p-3 flex gap-3 hover:shadow-md transition-all group cursor-pointer"
-                                    >
-                                        <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-emerald-50 relative flex items-center justify-center text-2xl font-bold">
-                                            {currentMenuId ? (
-                                                <img
-                                                    src={`/foods/${currentMenuId}.jpg`}
-                                                    alt={food.ThaiName}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform absolute inset-0 z-10"
-                                                    onError={(e) => {
-                                                        console.log(`❌ ไม่พบไฟล์ภาพของเมนูไอดีที่: ${currentMenuId} ในพาธ /foods/${currentMenuId}.jpg`);
-                                                    }}
-                                                />
-                                            ) : null}
-
-                                            <span className="select-none">
-                                                {food.Category === "อาหารคาว" ? "🍱" : food.Category === "ผลไม้" ? "🍎" : "🥤"}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex flex-col justify-center flex-1 min-w-0">
-                                            <h4 className="font-bold text-gray-800 text-sm truncate">{food.ThaiName}</h4>
-                                            <p className="text-gray-400 text-[10px] truncate mb-0.5">{food.EnglishName || "-"}</p>
-                                            <p className="text-emerald-600 text-xs font-semibold mb-1.5">
-                                                {food.Calories} kcal
-                                            </p>
-                                            <div className="flex gap-1.5 text-[10px] text-gray-400 flex-wrap">
-                                                <span className="bg-gray-50 px-1.5 py-0.5 rounded">C: {parsedNutrition.carbohydrates}g</span>
-                                                <span className="bg-gray-50 px-1.5 py-0.5 rounded">P: {parsedNutrition.protein}g</span>
-                                                <span className="bg-gray-50 px-1.5 py-0.5 rounded">F: {parsedNutrition.fat}g</span>
-                                            </div>
-                                        </div>
+                            {filteredFoods.map((food, index) => (
+                                <div
+                                    key={`${food.name}-${index}`}
+                                    className="min-w-[260px] md:min-w-0 bg-white border border-gray-100 rounded-xl p-3 flex gap-3 hover:shadow-md transition-all group cursor-pointer"
+                                >
+                                    <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-emerald-50 relative flex items-center justify-center text-2xl font-bold">
+                                        <img
+                                            src={food.image_url || "/foods/default-food.jpg"}
+                                            alt={food.name}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform absolute inset-0 z-10"
+                                            onError={(e) => {
+                                                console.log(`❌ Image not found: ${food.image_url}`);
+                                            }}
+                                        />
+                                        <span className="select-none">
+                                            {food.category === "อาหารคาว" ? "🍱" : food.category === "ผลไม้" ? "🍎" : "🥤"}
+                                        </span>
                                     </div>
-                                );
-                            })}
+
+                                    <div className="flex flex-col justify-center flex-1 min-w-0">
+                                        <h4 className="font-bold text-gray-800 text-sm truncate">{food.name}</h4>
+                                        <p className="text-emerald-600 text-xs font-semibold mb-1.5">
+                                            {food.calories} kcal
+                                        </p>
+                                        <p className="text-gray-500 text-[10px]">{food.category}</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     ) : (
                         <div className="text-center py-8 text-gray-400 text-sm">
-                            ไม่มีรายการในหมวดหมู่นี้ตามข้อจำกัดโภชนาการและประวัติการแพ้อาหารของคุณ
+                            ไม่มีรายการในหมวดหมู่นี้ตามข้อจำกัดโภชนาการของคุณ
                         </div>
                     )}
                 </div>
 
-                {/* 2. ส่วนแสดงผลลิงก์อ้างอิงแหล่งข้อมูลทางการแพทย์ */}
+                {/* Medical References */}
                 <div className="mt-2 pt-4 border-t border-gray-100">
                     <h5 className="text-xs font-semibold text-gray-500 mb-3 flex items-center gap-1.5">
                         🩺 แหล่งอ้างอิงข้อมูลโภชนาการทางการแพทย์
@@ -308,7 +267,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                                 rel="noopener noreferrer"
                                 className="text-gray-600 hover:text-emerald-600 font-medium line-clamp-1 hover:underline"
                             >
-                                🔗 “คาร์บดี” เคล็ดลับเลือกกินแป้งและน้ำตาลเพื่อสุขภาพดี
+                                🔗 "คาร์บดี" เคล็ดลับเลือกกินแป้งและน้ำตาลเพื่อสุขภาพดี
                             </a>
                         </div>
 
