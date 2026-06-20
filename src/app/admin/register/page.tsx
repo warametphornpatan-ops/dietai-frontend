@@ -289,6 +289,7 @@ export default function AdminRegisterPage() {
   }
 
   const pwMatch = form.confirm_password && form.password === form.confirm_password;
+  const citizenFormatValid = form.citizen_id.length === 13 && validateThaiID(form.citizen_id).isValid;
 
   return (
     <div style={{
@@ -369,18 +370,46 @@ export default function AdminRegisterPage() {
             )}
           </Field>
 
-          {/* citizen id (✅ เอาปุ่มตรวจสอบออกแล้ว — จะเช็คซ้ำตอนกดลงทะเบียน) */}
+          {/* citizen id (✅ เช็ครูปแบบแบบเรียลไทม์ด้วย validateThaiID — เช็คซ้ำกับ DB ตอนกดลงทะเบียน) */}
           <Field label="เลขบัตรประชาชน" hint="(13 หลัก)" error={fieldErrors.citizen_id}>
-            <StyledInput
-              type="text" inputMode="numeric" maxLength={13} placeholder="xxxxxxxxxxxxx"
-              value={form.citizen_id}
-              hasError={!!fieldErrors.citizen_id}
-              onChange={e => {
-                const val = e.target.value.replace(/\D/g, "");
-                setForm(p => ({ ...p, citizen_id: val }));
-                setFieldErrors(p => ({ ...p, citizen_id: "" }));
-              }}
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                type="text" inputMode="numeric" maxLength={13} placeholder="xxxxxxxxxxxxx"
+                value={form.citizen_id}
+                style={{
+                  ...inputBase, paddingRight: 40,
+                  borderColor: fieldErrors.citizen_id
+                    ? "#fca5a5"
+                    : citizenFormatValid
+                      ? "#16a360"
+                      : "#c8e8d8",
+                }}
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 13);
+                  setForm(p => ({ ...p, citizen_id: val }));
+
+                  if (val.length < 13) {
+                    // ยังพิมพ์ไม่ครบ ไม่ต้องฟ้อง error รัวๆ ระหว่างพิมพ์
+                    setFieldErrors(p => ({ ...p, citizen_id: "" }));
+                  } else {
+                    // ครบ 13 หลักแล้ว ตรวจรูปแบบ + check digit ทันที
+                    const result = validateThaiID(val);
+                    setFieldErrors(p => ({ ...p, citizen_id: result.isValid ? "" : result.message }));
+                  }
+                }}
+                onBlur={() => {
+                  if (form.citizen_id.length > 0 && form.citizen_id.length < 13) {
+                    setFieldErrors(p => ({ ...p, citizen_id: "ต้องเป็นตัวเลข 13 หลัก" }));
+                  }
+                }}
+                onFocus={e => e.currentTarget.style.borderColor = "#16a360"}
+              />
+              {citizenFormatValid && (
+                <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#16a360" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                </span>
+              )}
+            </div>
           </Field>
 
           {/* name row */}
