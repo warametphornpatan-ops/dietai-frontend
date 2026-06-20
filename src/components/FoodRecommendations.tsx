@@ -31,7 +31,7 @@ interface FoodFromDB {
     image_url: string;
 }
 
-// ✅ สร้าง Interface กลาง ครอบคลุมฟิลด์ทั้งหมดที่ Backend อาจจะส่งมา
+// ✅ Interface กลาง ครอบคลุมฟิลด์ทั้งหมดที่ Backend อาจจะส่งมา
 interface ApiFoodItem {
     MenuID?: number;
     menu_id?: number;
@@ -48,7 +48,7 @@ interface ApiFoodItem {
     image_url?: string;
 }
 
-// ✅ Interface สำหรับรับ Response จาก API รองรับทั้งรูปแบบเก่าและใหม่
+// ✅ Interface สำหรับรับ Response รองรับทั้งรูปแบบเก่าและใหม่
 interface BackendRecommendationResponse {
     success?: boolean;
     bmi?: number;
@@ -97,28 +97,28 @@ const getBmiRemark = (bmi: number) => {
     }
 };
 
-// ✅ ฟังก์ชันแปลงข้อมูลให้อยู่ในรูปแบบเดียวที่ Frontend ต้องการ
-const formatFoodData = (item: ApiFoodItem): FoodFromDB => {
-    const foodName = item.ThaiName || item.name || item.food_thai || "ไม่มีชื่อเมนู";
-    const foodCalories = item.Calories || item.calories || 0;
-    let foodCategory = item.Category || item.category || "อาหารคาว";
-
-    // จัดกลุ่มหมวดหมู่ให้ตรงกับ Tab ใน Frontend
-    if (foodCategory.includes("ผลไม้")) {
-        foodCategory = "ผลไม้";
-    } else if (foodCategory.includes("เครื่องดื่ม") || foodCategory.includes("Beverage")) {
-        foodCategory = "เครื่องดื่ม";
-    } else {
-        foodCategory = "อาหารคาว";
-    }
-
-    return {
-        name: foodName,
-        calories: foodCalories,
-        category: foodCategory,
-        image_url: item.image_url || "/foods/default-food.jpg"
-    };
+// ✅ จัดกลุ่มหมวดหมู่ให้ตรงกับ Tab ใน Frontend
+const normalizeCategory = (rawCategory: string): string => {
+    if (rawCategory.includes("ผลไม้")) return "ผลไม้";
+    if (rawCategory.includes("เครื่องดื่ม") || rawCategory.includes("Beverage")) return "เครื่องดื่ม";
+    return "อาหารคาว";
 };
+
+// ✅ แปลงข้อมูลอาหารคาว/ผลไม้ (recommended_dishes) — ใช้ Category จริงจาก Backend
+const formatDishData = (item: ApiFoodItem): FoodFromDB => ({
+    name: item.ThaiName || item.name || item.food_thai || "ไม่มีชื่อเมนู",
+    calories: item.Calories || item.calories || 0,
+    category: normalizeCategory(item.Category || item.category || "อาหารคาว"),
+    image_url: item.image_url || "/foods/default-food.jpg"
+});
+
+// ✅ แปลงข้อมูลเครื่องดื่ม (beverages) — บังคับหมวดเป็น "เครื่องดื่ม" เสมอ
+const formatBeverageData = (item: ApiFoodItem): FoodFromDB => ({
+    name: item.ThaiName || item.name || item.food_thai || "ไม่มีชื่อเมนู",
+    calories: item.Calories || item.calories || 0,
+    category: "เครื่องดื่ม",
+    image_url: item.image_url || "/foods/default-food.jpg"
+});
 
 export default function FoodRecommendations({ user }: FoodRecommendationsProps) {
     const [activeCategory, setActiveCategory] = useState<"อาหารคาว" | "ผลไม้" | "เครื่องดื่ม">("อาหารคาว");
@@ -143,11 +143,20 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
 
             setLoading(true);
             try {
-                console.log("🔵 Fetching from /api/foods/recommendations...");
-                
-                const response = await fetch(`/api/foods/recommendations`);
+                console.log("🔵 Fetching recommendations...");
+
+                // ✅ ยิง Backend โดยตรง พร้อมแนบ JWT token (ข้าม route.ts ตัวกลางที่ format ผิด)
+                const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+                const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+                const response = await fetch(`${API_BASE}/api/foods/recommendations`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
                 console.log(`📊 Response status: ${response.status}`);
-                
+
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error(`❌ HTTP Error ${response.status}: ${errorText}`);
@@ -159,21 +168,30 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                 const result: BackendRecommendationResponse = await response.json();
                 console.log("✅ Recommendations loaded:", result);
 
-                let rawFoods: ApiFoodItem[] = [];
+                let allFoods: FoodFromDB[] = [];
 
-                // ✅ ตรวจสอบโครงสร้างของข้อมูลที่ Backend ส่งมาทุกรูปแบบเพื่อป้องกันบั๊ก
-                if (Array.isArray(result.data)) {
-                    rawFoods = result.data;
-                } else if (result.recommended_dishes || result.beverages) {
-                    const dishes = Array.isArray(result.recommended_dishes) ? result.recommended_dishes : [];
-                    const drinks = Array.isArray(result.beverages) ? result.beverages : [];
-                    rawFoods = [...dishes, ...drinks];
-                } else if (Array.isArray(result)) {
-                    rawFoods = result as unknown as ApiFoodItem[];
+                // ✅ รูปแบบหลัก: Backend ส่ง { recommended_dishes, beverages }
+                if (result.recommended_dishes || result.beverages) {
+                    const dishes = Array.isArray(result.recommended_dishes)
+                        ? result.recommended_dishes.map(formatDishData)
+                        : [];
+                    const drinks = Array.isArray(result.beverages)
+                        ? result.beverages.map(formatBeverageData)
+                        : [];
+                    allFoods = [...dishes, ...drinks];
+
+                    console.log(`✅ Dishes: ${dishes.length}, Drinks: ${drinks.length}`);
+                }
+                // ✅ รูปแบบสำรอง: ส่งมาเป็น { data: [...] }
+                else if (Array.isArray(result.data)) {
+                    allFoods = result.data.map(formatDishData);
+                }
+                // ✅ รูปแบบสำรอง: ส่งมาเป็น Array ตรง ๆ
+                else if (Array.isArray(result)) {
+                    allFoods = (result as unknown as ApiFoodItem[]).map(formatDishData);
                 }
 
-                if (rawFoods.length > 0) {
-                    const allFoods: FoodFromDB[] = rawFoods.map(formatFoodData);
+                if (allFoods.length > 0) {
                     setFoods(allFoods);
                     console.log(`✅ Total foods loaded: ${allFoods.length}`);
                 } else {
@@ -183,6 +201,11 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
 
             } catch (error) {
                 console.error("❌ Error fetching recommended foods:", error);
+                if (error instanceof TypeError) {
+                    console.error("   Error type: Network/CORS Error");
+                } else if (error instanceof Error) {
+                    console.error("   Error message:", error.message);
+                }
                 setFoods([]);
             } finally {
                 setLoading(false);
@@ -306,7 +329,7 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                                             alt={food.name}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform absolute inset-0 z-10"
                                             onError={(e) => {
-                                                (e.target as HTMLImageElement).src = "/foods/default-food.jpg";
+                                                (e.currentTarget as HTMLImageElement).style.display = "none";
                                             }}
                                         />
                                         <span className="select-none">
