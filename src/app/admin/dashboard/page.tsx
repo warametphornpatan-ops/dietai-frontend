@@ -243,6 +243,7 @@ export default function AdminDashboardPage() {
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [resolvingRequestId, setResolvingRequestId] = useState<number | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<DoctorApplication | null>(null);
 
   function getAuthHeaders(extraHeaders = {}) {
     const token = localStorage.getItem("token");
@@ -929,7 +930,11 @@ export default function AdminDashboardPage() {
                                 <div style={{ width: 32, height: 32, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
                                   {app.first_name[0]}{app.last_name[0]}
                                 </div>
-                                <span style={{ color: "#1e293b", fontWeight: 500 }}>{app.first_name} {app.last_name}</span>
+                                <span
+                                  onClick={() => setSelectedApplication(app)}
+                                  style={{ color: "#1e293b", fontWeight: 500, cursor: "pointer", textDecoration: "underline" }}>
+                                  {app.first_name} {app.last_name}
+                                </span>
                               </div>
                             </td>
 
@@ -953,13 +958,13 @@ export default function AdminDashboardPage() {
                                   onClick={() => handleApproveDoctorApplication(app)}
                                   disabled={isApproving || isRejecting}
                                   style={{ padding: "5px 12px", borderRadius: 7, border: "none", background: isApproving ? "#cbd5e1" : "#10b981", color: "#fff", fontSize: 12, fontWeight: 600, cursor: isApproving || isRejecting ? "not-allowed" : "pointer", opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.15s" }}>
-                                  {isApproving ? "..." : "อนุมัติ"}
+                                  {isApproving ? "..." : "✅"}
                                 </button>
                                 <button
                                   onClick={() => handleRejectDoctorApplication(app)}
                                   disabled={isApproving || isRejecting}
                                   style={{ padding: "5px 12px", borderRadius: 7, border: "none", background: isRejecting ? "#cbd5e1" : "#ef4444", color: "#fff", fontSize: 12, fontWeight: 600, cursor: isApproving || isRejecting ? "not-allowed" : "pointer", opacity: isApproving || isRejecting ? 0.7 : 1, transition: "all 0.15s" }}>
-                                  {isRejecting ? "..." : "ปฏิเสธ"}
+                                  {isRejecting ? "..." : "❌"}
                                 </button>
                               </div>
                             </td>
@@ -1263,7 +1268,7 @@ export default function AdminDashboardPage() {
             <form onSubmit={handleSaveEditUser} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <Field label="ชื่อ-นามสกุล">
                 <SI
-                  placeholder={editingUser.name || "ไม่มี"}   // ✅ เอา "คงค่าเดิม:" ออก
+                  placeholder={editingUser.name || "ไม่มี"}
                   value={editUserForm.name}
                   onChange={e => setEditUserForm(p => ({ ...p, name: e.target.value }))}
                 />
@@ -1321,6 +1326,71 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ MODAL: PENDING APPLICATION DETAILS */}
+      {selectedApplication && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}
+          onClick={() => setSelectedApplication(null)}>
+          <div style={{ background: "#fff", borderRadius: 18, padding: 28, maxWidth: 500, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
+            onClick={e => e.stopPropagation()}>
+            
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(135deg,#f59e0b,#fbbf24)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: "#fff" }}>
+                {selectedApplication.first_name[0]}{selectedApplication.last_name[0]}
+              </div>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
+                  {selectedApplication.first_name} {selectedApplication.last_name}
+                </h2>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#64748b" }}>
+                  {selectedApplication.position || "ไม่ระบุตำแหน่ง"}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24, padding: "16px", background: "#f8fafc", borderRadius: 12 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", display: "block" }}>ชื่อ-นามสกุล</label>
+                <p style={{ margin: "4px 0 0", fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{selectedApplication.first_name} {selectedApplication.last_name}</p>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", display: "block" }}>อีเมล</label>
+                <p style={{ margin: "4px 0 0", fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{selectedApplication.email}</p>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", display: "block" }}>ตำแหน่ง</label>
+                <p style={{ margin: "4px 0 0", fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{selectedApplication.position || "ไม่ระบุ"}</p>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", display: "block" }}>สถานะ Email</label>
+                <div style={{ marginTop: 4 }}>
+                  <span style={{ fontSize: 11, padding: "4px 12px", borderRadius: 99, fontWeight: 600, display: "inline-block", background: selectedApplication.email_verified ? "#f0fdf4" : "#fef2f2", color: selectedApplication.email_verified ? "#16a34a" : "#dc2626", border: `1px solid ${selectedApplication.email_verified ? "#bbf7d0" : "#fecaca"}` }}>
+                    {selectedApplication.email_verified ? "✅ ยืนยันแล้ว" : "⏳ รอยืนยัน"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => { handleApproveDoctorApplication(selectedApplication); setSelectedApplication(null); }}
+                style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 600, color: "#fff", background: "#10b981", cursor: "pointer", transition: "all 0.2s" }}>
+                ✅ อนุมัติ
+              </button>
+              <button
+                onClick={() => { handleRejectDoctorApplication(selectedApplication); setSelectedApplication(null); }}
+                style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 600, color: "#fff", background: "#ef4444", cursor: "pointer", transition: "all 0.2s" }}>
+                ❌ ปฏิเสธ
+              </button>
+              <button
+                onClick={() => setSelectedApplication(null)}
+                style={{ flex: 0.8, padding: "10px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc", cursor: "pointer", transition: "all 0.2s" }}>
+                ปิด
+              </button>
+            </div>
           </div>
         </div>
       )}
