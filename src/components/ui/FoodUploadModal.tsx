@@ -92,7 +92,7 @@ async function refetchFoodData(userId: string) {
     console.log("📤 User ID:", userId);
     console.log("📤 Token:", token ? "exists" : "missing");
 
-    const response = await fetch(`${API_BASE}/foods/today/${userId}`, {
+    const response = await fetch(`${API_BASE}/api/foods/today/${userId}`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -144,8 +144,7 @@ function setCurrentUserNutrition(cal: number, carb: number) {
 // ✅ Helper function ดึง userId จาก localStorage
 function getUserId(): string {
   if (typeof window === "undefined") return "";
-  
-  // ลองดึงจาก user object
+
   const userStr = localStorage.getItem("user");
   if (userStr) {
     try {
@@ -156,11 +155,9 @@ function getUserId(): string {
     }
   }
 
-  // ลองดึงจาก userId key
   const directUserId = localStorage.getItem("userId");
   if (directUserId) return directUserId;
 
-  // ลองดึงจาก currentUser
   const currentUserStr = localStorage.getItem("currentUser");
   if (currentUserStr) {
     try {
@@ -195,7 +192,6 @@ export default function FoodUploadModal({ open, onClose }: Props) {
   const [selectedDrink, setSelectedDrink] = useState<string>("none");
   const [drinkVolume, setDrinkVolume] = useState<number>(200);
 
-  // ✅ เพิ่ม state สำหรับไข่ (fetch จากฐานข้อมูล)
   const [eggs, setEggs] = useState<ThaiFoodMenu[]>([]);
   const [selectedEgg, setSelectedEgg] = useState<string>("none");
 
@@ -209,8 +205,8 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     if (!open) return;
 
     if (beverages.length === 0) {
-      // ✅ แก้ API path ให้ใช้ ${API_BASE}
-      fetch(`${API_BASE}/foods?category=เครื่องดื่ม`)
+      // ✅ แก้ path เป็น /api/foods
+      fetch(`${API_BASE}/api/foods?category=เครื่องดื่ม`)
         .then((r) => (r.ok ? r.json() : []))
         .then((data: ThaiFoodMenu[]) => {
           console.log("✅ Beverages loaded:", data.length);
@@ -223,10 +219,10 @@ export default function FoodUploadModal({ open, onClose }: Props) {
 
     // ✅ Fetch ข้อมูลไข่จากฐานข้อมูล (โดย MenuID)
     if (eggs.length === 0) {
-      const eggMenuIds = [68, 113, 114]; // MenuID ของไข่ 3 แบบ
+      const eggMenuIds = [68, 113, 114];
       Promise.all(
         eggMenuIds.map((id) =>
-          fetch(`${API_BASE}/foods?menuId=${id}`)
+          fetch(`${API_BASE}/api/foods?menuId=${id}`)
             .then((r) => (r.ok ? r.json() : []))
             .catch((err) => {
               console.error(`Error loading egg ${id}:`, err);
@@ -246,9 +242,9 @@ export default function FoodUploadModal({ open, onClose }: Props) {
 
     if (foodMenus.length === 0) {
       Promise.all([
-        fetch(`${API_BASE}/foods?category=ผลไม้`).then((r) => (r.ok ? r.json() : [])),
-        fetch(`${API_BASE}/foods?category=ของหวาน`).then((r) => (r.ok ? r.json() : [])),
-        fetch(`${API_BASE}/foods?category=อาหารคาว`).then((r) => (r.ok ? r.json() : [])),
+        fetch(`${API_BASE}/api/foods?category=ผลไม้`).then((r) => (r.ok ? r.json() : [])),
+        fetch(`${API_BASE}/api/foods?category=ของหวาน`).then((r) => (r.ok ? r.json() : [])),
+        fetch(`${API_BASE}/api/foods?category=อาหารคาว`).then((r) => (r.ok ? r.json() : [])),
       ])
         .then(([fruits, desserts, mains]: [ThaiFoodMenu[], ThaiFoodMenu[], ThaiFoodMenu[]]) => {
           const all = [...fruits, ...desserts, ...mains];
@@ -340,7 +336,8 @@ export default function FoodUploadModal({ open, onClose }: Props) {
       const form = new FormData();
       form.append("file", blob, "food.jpg");
 
-      const resp = await fetch(`${API_BASE}/food/detect`, {
+      // ✅ แก้ path เป็น /api/food/detect (เอกพจน์ food)
+      const resp = await fetch(`${API_BASE}/api/food/detect`, {
         method: "POST",
         body: form,
       });
@@ -366,9 +363,9 @@ export default function FoodUploadModal({ open, onClose }: Props) {
       const best = [...preds].sort((a, b) => b.confidence - a.confidence)[0];
       const targetName = (best.class ?? "").toString().trim();
 
-      // ✅ แก้ API path
+      // ✅ แก้ path เป็น /api/foods
       const dbRes = await fetch(
-        `${API_BASE}/foods?aiName=${encodeURIComponent(targetName)}`
+        `${API_BASE}/api/foods?aiName=${encodeURIComponent(targetName)}`
       );
       if (!dbRes.ok) {
         setDetectError("ไม่พบข้อมูลอาหาร กรุณาเลือกเมนูด้วยตนเอง");
@@ -403,7 +400,8 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     const form = new FormData();
     form.append("file", file, "food.jpg");
     const token = localStorage.getItem("token")?.replace(/"/g, "");
-    const uploadRes = await fetch(`${API_BASE}/food-images`, {
+    // ✅ แก้ path เป็น /api/food-images
+    const uploadRes = await fetch(`${API_BASE}/api/food-images`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       credentials: "include",
@@ -419,7 +417,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
     return data as { url?: string };
   }
 
-  // ✅ แก้ saveNutrition: เพิ่ม refetch และ userId parameter
+  // ✅ saveNutrition: เพิ่ม refetch และ userId parameter
   async function saveNutrition(
     file: File | null,
     nutToAdd: { menu: string; cal: number; carb: number; protein: number; fat: number }
@@ -438,19 +436,11 @@ export default function FoodUploadModal({ open, onClose }: Props) {
       }
 
       const token = localStorage.getItem("token")?.replace(/"/g, "");
-      
-      // 🔴 ตรวจสอบ endpoint path
-      console.log("📤 Sending POST to:", `${API_BASE}/foods/add`);
-      console.log("📋 Data:", {
-        food_name: nutToAdd.menu,
-        calories: nutToAdd.cal,
-        carbs: nutToAdd.carb,
-        protein: nutToAdd.protein,
-        fat: nutToAdd.fat,
-        image_url: imageUrl,
-      });
 
-      const saveRes = await fetch(`${API_BASE}/foods/add`, {
+      // ✅ แก้ path เป็น /api/foods/add
+      console.log("📤 Sending POST to:", `${API_BASE}/api/foods/add`);
+
+      const saveRes = await fetch(`${API_BASE}/api/foods/add`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -470,7 +460,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
       const contentType = saveRes.headers.get("content-type") || "";
       let data: unknown = {};
       if (contentType.includes("application/json")) data = await saveRes.json();
-      
+
       if (!saveRes.ok) {
         const err = data as { detail?: string; error?: string };
         console.error("❌ Save error response:", err);
@@ -479,13 +469,12 @@ export default function FoodUploadModal({ open, onClose }: Props) {
 
       console.log("✅ Save success:", data);
 
-      // ✅ เพิ่มจุดที่ 1: refetch data จาก server
+      // ✅ refetch data จาก server
       const userId = getUserId();
       if (userId) {
         const freshData = await refetchFoodData(userId);
         if (freshData) {
           console.log("✅ Fresh data from server:", freshData);
-          // Dispatch event พร้อมข้อมูล fresh
           window.dispatchEvent(
             new CustomEvent("foodDataRefreshed", {
               detail: freshData,
@@ -513,7 +502,7 @@ export default function FoodUploadModal({ open, onClose }: Props) {
 
       const current = getCurrentUserNutrition();
       setCurrentUserNutrition(current.cal + nutToAdd.cal, current.carb + nutToAdd.carb);
-      
+
       window.dispatchEvent(
         new CustomEvent("nutritionUpdated", {
           detail: { cal: nutToAdd.cal, carb: nutToAdd.carb, protein: nutToAdd.protein, fat: nutToAdd.fat },
@@ -546,12 +535,10 @@ export default function FoodUploadModal({ open, onClose }: Props) {
   const drinkBaseCal = drinkData?.Calories ?? 0;
   const drinkMul = selectedDrink === "none" ? 0 : drinkVolume / 100;
 
-  // ✅ คำนวณ nutrition จากไข่
   const eggData = eggs.find((e) => e.MenuID.toString() === selectedEgg) ?? null;
   const eggNut = eggData?.Nutrition ?? { carbohydrates: 0, protein: 0, fat: 0 };
   const eggBaseCal = eggData?.Calories ?? 0;
 
-  // ✅ รวม nutrition ทั้งหมด
   const totalCal =
     activeFoodData ? Math.round(foodBaseCal + drinkBaseCal * drinkMul + (selectedEgg !== "none" ? eggBaseCal : 0)) : 0;
   const totalCarb = activeFoodData
@@ -582,7 +569,6 @@ export default function FoodUploadModal({ open, onClose }: Props) {
       )
     : 0;
 
-  // ✅ สร้างชื่อเมนูรวมทั้งไข่
   const finalMenuName = activeFoodData
     ? [
         activeFoodData.ThaiName,
