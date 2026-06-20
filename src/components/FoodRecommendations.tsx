@@ -83,34 +83,50 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
         { id: "เครื่องดื่ม", name: "🥤 เครื่องดื่ม" },
     ] as const;
 
-    // ✅ Fetch from /api/foods/recommendations
+    // ✅ Fetch from /api/foods/recommendations (improved from Gemini suggestion)
     useEffect(() => {
         const fetchRecommendedFoods = async () => {
             // ป้องกันการยิง API ถ้ายังไม่มีข้อมูล User
-            if (!user?.id) return;
+            if (!user?.id) {
+                console.log("⏳ Waiting for user data...");
+                setLoading(false);
+                return;
+            }
 
             setLoading(true);
             try {
                 console.log("🔵 Fetching from /api/foods/recommendations...");
-                // 1️⃣ แนบ userId ไปด้วยเพื่อให้ Backend รู้ว่าต้องคัดกรองอาหารของใคร
-                const response = await fetch(`/api/foods/recommendations?userId=${user.id}`);
-                const result = await response.json();
+                
+                const response = await fetch(`/api/foods/recommendations`);
+                
+                if (!response.ok) {
+                    console.error(`❌ Failed to fetch: ${response.status}`);
+                    setFoods([]);
+                    setLoading(false);
+                    return;
+                }
 
+                const result = await response.json();
                 console.log("✅ Recommendations loaded:", result);
 
-                // 2️⃣ รองรับกรณีที่ Backend อาจจะส่งข้อมูลห่อไว้ใน key 'data'
+                // ✅ 1️⃣ รองรับกรณีที่ Backend อาจส่งข้อมูลห่อไว้ใน key 'data' หรือส่งโดยตรง
                 const payload = result.data || result;
-
+                
+                // ✅ 2️⃣ ตรวจสอบว่ามี recommended_dishes หรือ beverages
                 if (payload.recommended_dishes || payload.beverages) {
-                    // 3️⃣ รวมทั้งอาหารคาว/ผลไม้ (recommended_dishes) และ เครื่องดื่ม (beverages) เข้าด้วยกัน
+                    // ✅ 3️⃣ รวมทั้ง recommended_dishes และ beverages เข้าด้วยกัน
                     const dishes = Array.isArray(payload.recommended_dishes) ? payload.recommended_dishes : [];
                     const drinks = Array.isArray(payload.beverages) ? payload.beverages : [];
-
+                    
                     const allFoods = [...dishes, ...drinks];
                     setFoods(allFoods);
-                    console.log("✅ Total foods set to state:", allFoods);
+                    
+                    console.log(`✅ Total foods loaded: ${allFoods.length}`);
+                    console.log(`   - Dishes: ${dishes.length}`);
+                    console.log(`   - Drinks: ${drinks.length}`);
                 } else {
                     console.warn("⚠️ No recommended_dishes or beverages in response");
+                    console.log("Response structure:", Object.keys(payload));
                     setFoods([]);
                 }
             } catch (error) {
@@ -124,9 +140,10 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
         if (bmi > 0) {
             fetchRecommendedFoods();
         } else {
+            console.log("⏳ Waiting for BMI data...");
             setLoading(false);
         }
-        // ✅ อย่าลืมเพิ่ม user?.id ใน Dependency array
+    // ✅ เพิ่ม user?.id ใน dependency array เพื่อให้ fetch อีกครั้งเมื่อ user เปลี่ยน
     }, [bmi, user?.id]);
 
     // ✅ Filter by activeCategory - ใช้ food.category (lowercase) ตามที่ Backend ส่อง
@@ -179,10 +196,11 @@ export default function FoodRecommendations({ user }: FoodRecommendationsProps) 
                             <button
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
-                                className={`text-[10px] px-2.5 py-1 rounded-full transition-all border ${activeCategory === cat.id
+                                className={`text-[10px] px-2.5 py-1 rounded-full transition-all border ${
+                                    activeCategory === cat.id
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold"
                                         : "bg-white text-gray-500 border-transparent hover:bg-gray-50"
-                                    }`}
+                                }`}
                             >
                                 {cat.name}
                             </button>
