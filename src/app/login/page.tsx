@@ -263,7 +263,7 @@ export default function LoginPage() {
           detectedRole = "doctor";
         } else {
           // Try admin
-          res = await fetch(`${API_URL}/api/admins/login`, {
+          res = await fetch(`${API_URL}/api/admin/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password, org_code: orgCode }),
