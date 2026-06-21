@@ -342,14 +342,20 @@ export default function LoginPage() {
         />
       </div>
 
-       {/* Back Button */}
+      {/* Back Button */}
       <div className="absolute top-5 left-5 z-10">
         <Link
           href="/"
-          className="flex items-center gap-2 text-lg font-semibold transition-colors duration-200"
-          style={{ color: COLOR.secondary }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-semibold transition-all duration-200 hover:gap-3 hover:shadow-md"
+          style={{
+            color: COLOR.primary,
+            background: "rgba(255,255,255,0.85)",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(22,163,97,0.15)",
+            boxShadow: "0 4px 14px rgba(13,79,46,0.08)",
+          }}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5M12 5l-7 7 7 7" />
           </svg>
           กลับหน้าแรก
@@ -394,10 +400,10 @@ export default function LoginPage() {
               style={
                 loginType === t
                   ? {
-                      background: COLOR.primary,
-                      color: "#fff",
-                      boxShadow: "0 2px 8px rgba(22,163,96,0.3)",
-                    }
+                    background: COLOR.primary,
+                    color: "#fff",
+                    boxShadow: "0 2px 8px rgba(22,163,96,0.3)",
+                  }
                   : { color: COLOR.secondary }
               }
             >
@@ -439,15 +445,15 @@ export default function LoginPage() {
                   style={
                     orgName
                       ? {
-                          background: COLOR.successBg,
-                          color: COLOR.primary,
-                          border: `1.5px solid ${COLOR.successBorder}`,
-                        }
+                        background: COLOR.successBg,
+                        color: COLOR.primary,
+                        border: `1.5px solid ${COLOR.successBorder}`,
+                      }
                       : {
-                          background: COLOR.errorBg,
-                          color: "#ef4444",
-                          border: `1.5px solid ${COLOR.errorBorder}`,
-                        }
+                        background: COLOR.errorBg,
+                        color: "#ef4444",
+                        border: `1.5px solid ${COLOR.errorBorder}`,
+                      }
                   }
                 >
                   {checkingOrg ? "..." : orgName ? "✓" : "ตรวจสอบ"}
