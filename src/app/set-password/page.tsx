@@ -57,46 +57,70 @@ export default function SetPasswordPage() {
   const strengthColor = ['', '#f87171', '#fb923c', '#a3e635', '#34d399'][strength];
 
   const handleConfirmPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    console.log('🔵 DEBUG: Form submitted! Event:', e);
     e.preventDefault();
+    console.log('🔵 DEBUG: preventDefault() called');
+    
     setIsLoading(true);
     setStatus({ type: null, message: '' });
 
+    console.log('🔵 DEBUG: Password fields - password length:', password.length, 'confirmPassword length:', confirmPassword.length);
+
     if (password !== confirmPassword) {
+      console.log('❌ DEBUG: Passwords do not match!');
       setStatus({ type: 'error', message: 'รหัสผ่านทั้งสองช่องไม่ตรงกัน' });
       setIsLoading(false);
       return;
     }
+    
+    console.log('✅ DEBUG: Passwords match! Proceeding to Supabase...');
 
     try {
+      console.log('🔵 DEBUG: Getting session from Supabase...');
       const { data: sessionData } = await supabase.auth.getSession();
+      console.log('🔵 DEBUG: Session data:', sessionData);
+      
       if (!sessionData.session || !sessionData.session.user.email) {
         throw new Error('ลิงก์หมดอายุ หรือสิทธิ์การเข้าถึงไม่ถูกต้อง กรุณากดลิงก์จากอีเมลใหม่');
       }
 
       const doctorEmail = sessionData.session.user.email;
+      console.log('🔵 DEBUG: Doctor email:', doctorEmail);
 
+      console.log('🔵 DEBUG: Updating password in Supabase Auth...');
       const { error: supabaseError } = await supabase.auth.updateUser({ password });
-      if (supabaseError) throw new Error(`Supabase Auth: ${supabaseError.message}`);
+      if (supabaseError) {
+        console.error('❌ DEBUG: Supabase error:', supabaseError);
+        throw new Error(`Supabase Auth: ${supabaseError.message}`);
+      }
+      console.log('✅ DEBUG: Supabase password updated!');
 
+      console.log('🔵 DEBUG: Sending request to backend:', `${BACKEND_URL}/api/admins/sync-password`);
       const backendResponse = await fetch(`${BACKEND_URL}/api/admins/sync-password`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: doctorEmail, new_password: password }),
       });
 
+      console.log('🔵 DEBUG: Backend response status:', backendResponse.status);
       const responseData = await backendResponse.json() as SyncResponse;
+      console.log('🔵 DEBUG: Backend response data:', responseData);
+      
       if (!backendResponse.ok) {
         throw new Error(responseData.detail || 'ไม่สามารถบันทึกรหัสผ่านเข้าสู่ฐานข้อมูลได้');
       }
 
+      console.log('✅ DEBUG: All operations successful!');
       setStatus({ type: 'success', message: 'ตั้งรหัสผ่านสำเร็จ! คุณสามารถเข้าสู่ระบบได้ทันที' });
       setPassword('');
       setConfirmPassword('');
     } catch (err: unknown) {
+      console.error('❌ DEBUG: Error caught:', err);
       const errorMsg = err instanceof Error ? err.message : 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้ในขณะนี้';
       setStatus({ type: 'error', message: errorMsg });
     } finally {
       setIsLoading(false);
+      console.log('🔵 DEBUG: Function complete');
     }
   };
 
