@@ -9,8 +9,10 @@ export async function GET(request: NextRequest) {
   
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const hash = requestUrl.hash;
 
   console.log('🔵 DEBUG: Code from URL:', code);
+  console.log('🔵 DEBUG: Hash from URL:', hash);
 
   if (code) {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -31,7 +33,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Redirect ไป set-password หลังจากสำเร็จ
+  if (hash) {
+    console.log('🔵 DEBUG: Hash detected, redirecting to set-password with hash');
+    return NextResponse.redirect(new URL(`/auth/set-password${hash}`, requestUrl.origin));
+  }
+
   console.log('🔵 DEBUG: Redirecting to set-password');
   return NextResponse.redirect(new URL('/auth/set-password', requestUrl.origin));
 }
