@@ -45,6 +45,7 @@ function SetPasswordContent() {
 
   useEffect(() => {
     const init = async () => {
+      let diag = 'v4: no token';
       try {
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');
@@ -62,9 +63,7 @@ function SetPasswordContent() {
             token_hash: tokenHash,
             type,
           });
-          setInitError(
-            `verifyOtp → session:${!!data?.session} user:${!!data?.user} err:${error?.message ?? 'none'}`
-          );
+          diag = `v4: session:${!!data?.session} user:${!!data?.user} err:${error?.message ?? 'none'}`;
           if (error) throw error;
           if (data.session) {
             setSessionReady(true);
@@ -74,6 +73,7 @@ function SetPasswordContent() {
         // 2) code (PKCE)
         else if (code) {
           const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          diag = `v4(code): session:${!!data?.session} err:${error?.message ?? 'none'}`;
           if (error) throw error;
           if (data.session) {
             setSessionReady(true);
@@ -91,10 +91,10 @@ function SetPasswordContent() {
           await new Promise((r) => setTimeout(r, 400));
         }
 
-        setInitError('ไม่พบ session หลังยืนยันลิงก์');
+        setInitError(diag);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        setInitError(msg);
+        setInitError(`${diag} | catch: ${msg}`);
       } finally {
         setInitializing(false);
       }
