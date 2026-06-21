@@ -21,7 +21,7 @@ interface SyncResponse {
   message?: string;
 }
 
-export default function SetPasswordPage() {
+function SetPasswordContent() {
   const searchParams = useSearchParams();
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
@@ -32,11 +32,9 @@ export default function SetPasswordPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirm, setShowConfirm] = useState<boolean>(false);
-  const [mounted, setMounted] = useState<boolean>(false);
 
   useEffect(() => {
     console.log('🔵 DEBUG: useEffect mounted, starting initialization...');
-    setMounted(true);
     
     // ✅ ดึง query param exchanged เพื่อรู้ว่า callback สำเร็จไหม
     const exchanged = searchParams.get('exchanged') === 'true';
@@ -163,8 +161,6 @@ export default function SetPasswordPage() {
       console.log('🔵 DEBUG: Function complete');
     }
   };
-
-  if (!mounted) return null;
 
   return (
     <>
@@ -572,5 +568,13 @@ export default function SetPasswordPage() {
         </Link>
       </div>
     </>
+  );
+}
+
+export default function SetPasswordPage() {
+  return (
+    <React.Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>}>
+      <SetPasswordContent />
+    </React.Suspense>
   );
 }
