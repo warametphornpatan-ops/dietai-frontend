@@ -16,7 +16,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false, // เราจัดการ token เองทั้งหมด
+    detectSessionInUrl: false,
+    flowType: 'implicit',
+    storageKey: 'dietai-setpw-auth',
   },
 });
 
@@ -60,6 +62,9 @@ function SetPasswordContent() {
             token_hash: tokenHash,
             type,
           });
+          setInitError(
+            `verifyOtp → session:${!!data?.session} user:${!!data?.user} err:${error?.message ?? 'none'}`
+          );
           if (error) throw error;
           if (data.session) {
             setSessionReady(true);
