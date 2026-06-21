@@ -1336,7 +1336,7 @@ export default function AdminDashboardPage() {
           onClick={() => setSelectedApplication(null)}>
           <div style={{ background: "#fff", borderRadius: 18, padding: 28, maxWidth: 500, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
             onClick={e => e.stopPropagation()}>
-            
+
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
               <div style={{ width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(135deg,#f59e0b,#fbbf24)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: "#fff" }}>
                 {selectedApplication.first_name[0]}{selectedApplication.last_name[0]}
@@ -1374,10 +1374,10 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
               <button
                 onClick={() => setSelectedApplication(null)}
-                style={{ padding: "10px 24px", borderRadius: 10, border: "1.5px solid #cbd5e1", fontSize: 13, fontWeight: 600, color: "#64748b", background: "#f8fafc", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
+                style={{ minWidth: 200, padding: "11px 24px", borderRadius: 10, border: "1.5px solid #cbd5e1", fontSize: 14, fontWeight: 600, color: "#64748b", background: "#f8fafc", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = "#94a3b8"; e.currentTarget.style.color = "#475569"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.color = "#64748b"; }}>
                 ปิด
