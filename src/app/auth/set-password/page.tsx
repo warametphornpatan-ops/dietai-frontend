@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -22,7 +21,6 @@ interface SyncResponse {
 }
 
 function SetPasswordContent() {
-  const searchParams = useSearchParams();
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [status, setStatus] = useState<{
@@ -32,54 +30,6 @@ function SetPasswordContent() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirm, setShowConfirm] = useState<boolean>(false);
-
-  useEffect(() => {
-    console.log('🔵 DEBUG: useEffect mounted, starting initialization...');
-    
-    // ✅ ดึง query param exchanged เพื่อรู้ว่า callback สำเร็จไหม
-    const exchanged = searchParams.get('exchanged') === 'true';
-    const error = searchParams.get('error');
-    
-    console.log('🔵 DEBUG: Query params - exchanged:', exchanged, 'error:', error);
-    
-    if (error) {
-      setStatus({ 
-        type: 'error', 
-        message: `ข้อผิดพลาด: ${error}. กรุณากดลิงก์จากอีเมลใหม่` 
-      });
-      return;
-    }
-    
-    const checkSession = async () => {
-      console.log('🔵 DEBUG: Checking session...');
-      
-      // ✅ ถ้า exchanged=true ให้รอ session นิดหน่อย (Supabase อาจยังไม่ sync)
-      let retries = 0;
-      const maxRetries = 5;
-      let hasSession = false;
-      
-      while (retries < maxRetries && !hasSession) {
-        const { data } = await supabase.auth.getSession();
-        console.log(`🔵 DEBUG: Session check ${retries + 1}/${maxRetries}:`, data.session ? '✅ Found' : '❌ Not found');
-        
-        if (data.session) {
-          hasSession = true;
-          console.log("✅ DEBUG: Session found:", data.session.user.email);
-          break;
-        }
-        
-        // รอ 500ms ก่อนลองใหม่
-        await new Promise(resolve => setTimeout(resolve, 500));
-        retries++;
-      }
-      
-      if (!hasSession && exchanged) {
-        console.warn("⚠️ DEBUG: Exchange flag set แต่ยังไม่มี session - อาจจะลิงก์หมดอายุหรือ server ช้า");
-      }
-    };
-    
-    checkSession();
-  }, [searchParams]);
 
   const strength = (() => {
     if (!password) return 0;
@@ -95,49 +45,46 @@ function SetPasswordContent() {
   const strengthColor = ['', '#f87171', '#fb923c', '#a3e635', '#34d399'][strength];
 
   const handleConfirmPassword = async (e: React.FormEvent<HTMLFormElement>) => {
-    console.log('🔵 DEBUG: Form submitted! Event:', e);
     e.preventDefault();
-    console.log('🔵 DEBUG: preventDefault() called');
     
     setIsLoading(true);
     setStatus({ type: null, message: '' });
 
-    console.log('🔵 DEBUG: Password fields - password length:', password.length, 'confirmPassword length:', confirmPassword.length);
-
+    // ✅ ตรวจสอบรหัสผ่านตรงกัน
     if (password !== confirmPassword) {
-      console.log('❌ DEBUG: Passwords do not match!');
       setStatus({ type: 'error', message: 'รหัสผ่านทั้งสองช่องไม่ตรงกัน' });
       setIsLoading(false);
       return;
     }
-    
-    console.log('✅ DEBUG: Passwords match! Proceeding to Supabase...');
 
     try {
+      // ✅ 1. ดึง session
       console.log('🔵 DEBUG: Getting session from Supabase...');
       const { data: sessionData } = await supabase.auth.getSession();
-      console.log('🔵 DEBUG: Session data:', sessionData);
       
       if (!sessionData.session || !sessionData.session.user.email) {
         throw new Error('ลิงก์หมดอายุ หรือสิทธิ์การเข้าถึงไม่ถูกต้อง กรุณากดลิงก์จากอีเมลใหม่');
       }
 
-      const doctorEmail = sessionData.session.user.email;
-      console.log('🔵 DEBUG: Doctor email:', doctorEmail);
+      const adminEmail = sessionData.session.user.email;
+      console.log('✅ DEBUG: Admin email:', adminEmail);
 
+      // ✅ 2. อัพเดต password ใน Supabase Auth
       console.log('🔵 DEBUG: Updating password in Supabase Auth...');
       const { error: supabaseError } = await supabase.auth.updateUser({ password });
+      
       if (supabaseError) {
         console.error('❌ DEBUG: Supabase error:', supabaseError);
         throw new Error(`Supabase Auth: ${supabaseError.message}`);
       }
       console.log('✅ DEBUG: Supabase password updated!');
 
+      // ✅ 3. Sync password กับ backend
       console.log('🔵 DEBUG: Sending request to backend:', `${BACKEND_URL}/api/admins/sync-password`);
       const backendResponse = await fetch(`${BACKEND_URL}/api/admins/sync-password`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: doctorEmail, new_password: password }),
+        body: JSON.stringify({ email: adminEmail, new_password: password }),
       });
 
       console.log('🔵 DEBUG: Backend response status:', backendResponse.status);
@@ -148,6 +95,7 @@ function SetPasswordContent() {
         throw new Error(responseData.detail || 'ไม่สามารถบันทึกรหัสผ่านเข้าสู่ฐานข้อมูลได้');
       }
 
+      // ✅ สำเร็จ!
       console.log('✅ DEBUG: All operations successful!');
       setStatus({ type: 'success', message: 'ตั้งรหัสผ่านสำเร็จ! คุณสามารถเข้าสู่ระบบได้ทันที' });
       setPassword('');
@@ -158,7 +106,6 @@ function SetPasswordContent() {
       setStatus({ type: 'error', message: errorMsg });
     } finally {
       setIsLoading(false);
-      console.log('🔵 DEBUG: Function complete');
     }
   };
 
@@ -446,7 +393,7 @@ function SetPasswordContent() {
           <div className="sp-top">
             <div className="sp-icon">🔐</div>
             <div className="sp-title">สร้างรหัสผ่านใหม่</div>
-            <div className="sp-subtitle">กรุณาตั้งรหัสผ่านสำหรับบัญชีแพทย์ของคุณ</div>
+            <div className="sp-subtitle">กรุณาตั้งรหัสผ่านสำหรับบัญชีแอดมินของคุณ</div>
           </div>
 
           {/* Body */}
