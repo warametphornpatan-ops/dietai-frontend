@@ -1,19 +1,20 @@
 "use client";
 
 import { useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 /**
  * UrlMasker
- * - ซ่อน URL บน address bar ให้เหลือโดเมนเปล่า (เหมือนเดิม)
- * - ยกเว้นหน้า /auth ทั้งหมด ห้ามแตะ URL (เพราะต้องใช้ token_hash ใน query)
- * - จำ path จริงไว้ เพื่อให้ refresh (F5) กลับไปหน้าเดิม ไม่เด้งหน้าแรก
+ * - ซ่อน URL บน address bar ให้เหลือโดเมนเปล่า
+ * - ยกเว้นหน้า /auth ทั้งหมด ห้ามแตะ URL (เพราะต้องใช้ token_hash ใน query ตั้งรหัสผ่าน)
+ *
+ * หมายเหตุ: ตัด logic พากลับหน้าเดิมตอน F5 ออก เพราะทำให้เกิดการวนซ้ำ
+ * (เว็บช้า/บั๊ก/logout ไม่ออก) ผลคือกด F5 หน้าอื่นจะเด้งกลับหน้าแรก ซึ่งเป็นพฤติกรรมที่นิ่งและคาดเดาได้
  *
  * วิธีใช้: import มาวางใน layout.tsx เหมือนเดิม เช่น <UrlMasker />
  */
 export default function UrlMasker() {
   const pathname = usePathname();
-  const router = useRouter();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -23,28 +24,14 @@ export default function UrlMasker() {
       return;
     }
 
-    // 2) ถ้า address bar เป็น "/" (เช่นหลังกด F5) แต่เคยอยู่หน้าอื่น → พากลับไปหน้านั้น
+    // 2) หน้าแรก ไม่ต้องทำอะไร
     if (pathname === '/') {
-      let saved: string | null = null;
-      try {
-        saved = sessionStorage.getItem('realPath');
-      } catch {
-        saved = null;
-      }
-      if (saved && saved !== '/' && !saved.startsWith('/auth')) {
-        router.replace(saved);
-      }
       return;
     }
 
-    // 3) หน้าอื่น ๆ: จำ path จริงไว้ แล้วซ่อน URL เป็นโดเมนเปล่า
-    try {
-      sessionStorage.setItem('realPath', pathname);
-    } catch {
-      // ignore (เช่น โหมดไม่บันทึก storage)
-    }
+    // 3) หน้าอื่น ๆ: ซ่อน URL เป็นโดเมนเปล่า
     window.history.replaceState(null, '', '/');
-  }, [pathname, router]);
+  }, [pathname]);
 
   return null;
 }
