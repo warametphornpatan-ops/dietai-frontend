@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
@@ -12,7 +12,13 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn("คำเตือน: กรุณาตรวจสอบการตั้งค่า Supabase Environment Variables ในไฟล์ .env");
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
 
 interface SyncResponse {
   detail?: string;
@@ -31,6 +37,74 @@ function SetPasswordContent() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirm, setShowConfirm] = useState<boolean>(false);
 
+  // ✅ สถานะการเตรียม session ตอนเปิดหน้า
+  const [initializing, setInitializing] = useState<boolean>(true);
+  const [sessionReady, setSessionReady] = useState<boolean>(false);
+
+  // ✅ สร้าง session จากลิงก์อีเมลตอนเปิดหน้า
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const url = new URL(window.location.href);
+        const params = url.searchParams;
+
+        // hash params (กรณี implicit flow: #access_token=...)
+        const hash = new URLSearchParams(
+          window.location.hash ? window.location.hash.substring(1) : ''
+        );
+
+        const code = params.get('code');
+        const tokenHash = params.get('token_hash');
+        const type = (params.get('type') || 'invite') as
+          | 'invite'
+          | 'recovery'
+          | 'signup'
+          | 'email';
+
+        // 1) แบบ token_hash (วิธีหลักที่เราใช้)
+        if (tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type,
+          });
+          if (error) throw error;
+        }
+        // 2) แบบ code (PKCE)
+        else if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        }
+        // 3) แบบ hash (#access_token) — supabase-js จะจัดการให้เองผ่าน detectSessionInUrl
+        else if (hash.get('access_token')) {
+          // ให้ client ตั้ง session จาก hash
+          await new Promise((r) => setTimeout(r, 300));
+        }
+
+        // ตรวจว่ามี session แล้วหรือยัง
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          setSessionReady(true);
+        } else {
+          setStatus({
+            type: 'error',
+            message:
+              'ลิงก์ไม่ถูกต้องหรือหมดอายุ กรุณาให้แอดมินส่งคำเชิญใหม่ แล้วกดลิงก์จากอีเมลล่าสุด',
+          });
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'ไม่สามารถยืนยันลิงก์ได้';
+        setStatus({
+          type: 'error',
+          message: `ลิงก์ไม่ถูกต้องหรือหมดอายุ (${msg}) กรุณาให้แอดมินส่งคำเชิญใหม่`,
+        });
+      } finally {
+        setInitializing(false);
+      }
+    };
+
+    init();
+  }, []);
+
   const strength = (() => {
     if (!password) return 0;
     let s = 0;
@@ -46,11 +120,9 @@ function SetPasswordContent() {
 
   const handleConfirmPassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
     setIsLoading(true);
     setStatus({ type: null, message: '' });
 
-    // ✅ ตรวจสอบรหัสผ่านตรงกัน
     if (password !== confirmPassword) {
       setStatus({ type: 'error', message: 'รหัสผ่านทั้งสองช่องไม่ตรงกัน' });
       setIsLoading(false);
@@ -58,51 +130,44 @@ function SetPasswordContent() {
     }
 
     try {
-      // ✅ 1. ดึง session
-      console.log('🔵 DEBUG: Getting session from Supabase...');
       const { data: sessionData } = await supabase.auth.getSession();
-      
+
       if (!sessionData.session || !sessionData.session.user.email) {
-        throw new Error('ลิงก์หมดอายุ หรือสิทธิ์การเข้าถึงไม่ถูกต้อง กรุณากดลิงก์จากอีเมลใหม่');
+        throw new Error(
+          'ลิงก์หมดอายุ หรือสิทธิ์การเข้าถึงไม่ถูกต้อง กรุณากดลิงก์จากอีเมลใหม่'
+        );
       }
 
       const adminEmail = sessionData.session.user.email;
-      console.log('✅ DEBUG: Admin email:', adminEmail);
 
-      // ✅ 2. อัพเดต password ใน Supabase Auth
-      console.log('🔵 DEBUG: Updating password in Supabase Auth...');
       const { error: supabaseError } = await supabase.auth.updateUser({ password });
-      
       if (supabaseError) {
-        console.error('❌ DEBUG: Supabase error:', supabaseError);
         throw new Error(`Supabase Auth: ${supabaseError.message}`);
       }
-      console.log('✅ DEBUG: Supabase password updated!');
 
-      // ✅ 3. Sync password กับ backend
-      console.log('🔵 DEBUG: Sending request to backend:', `${BACKEND_URL}/api/admins/sync-password`);
       const backendResponse = await fetch(`${BACKEND_URL}/api/admins/sync-password`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: adminEmail, new_password: password }),
       });
 
-      console.log('🔵 DEBUG: Backend response status:', backendResponse.status);
-      const responseData = await backendResponse.json() as SyncResponse;
-      console.log('🔵 DEBUG: Backend response data:', responseData);
-      
+      const responseData = (await backendResponse.json()) as SyncResponse;
+
       if (!backendResponse.ok) {
-        throw new Error(responseData.detail || 'ไม่สามารถบันทึกรหัสผ่านเข้าสู่ฐานข้อมูลได้');
+        throw new Error(
+          responseData.detail || 'ไม่สามารถบันทึกรหัสผ่านเข้าสู่ฐานข้อมูลได้'
+        );
       }
 
-      // ✅ สำเร็จ!
-      console.log('✅ DEBUG: All operations successful!');
-      setStatus({ type: 'success', message: 'ตั้งรหัสผ่านสำเร็จ! คุณสามารถเข้าสู่ระบบได้ทันที' });
+      setStatus({
+        type: 'success',
+        message: 'ตั้งรหัสผ่านสำเร็จ! คุณสามารถเข้าสู่ระบบได้ทันที',
+      });
       setPassword('');
       setConfirmPassword('');
     } catch (err: unknown) {
-      console.error('❌ DEBUG: Error caught:', err);
-      const errorMsg = err instanceof Error ? err.message : 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้ในขณะนี้';
+      const errorMsg =
+        err instanceof Error ? err.message : 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้ในขณะนี้';
       setStatus({ type: 'error', message: errorMsg });
     } finally {
       setIsLoading(false);
@@ -337,6 +402,16 @@ function SetPasswordContent() {
           animation: spin 0.7s linear infinite;
         }
 
+        .sp-spinner-dark {
+          width: 22px;
+          height: 22px;
+          border: 3px solid #d1e8da;
+          border-top-color: #10b981;
+          border-radius: 50%;
+          animation: spin 0.7s linear infinite;
+          margin: 0 auto 14px;
+        }
+
         @keyframes spin { to { transform: rotate(360deg); } }
 
         .sp-msg {
@@ -365,6 +440,14 @@ function SetPasswordContent() {
         }
 
         .sp-msg-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+        .sp-init {
+          text-align: center;
+          color: #6b8f79;
+          font-size: 13px;
+          font-weight: 300;
+          padding: 12px 0;
+        }
 
         .sp-footer-link {
           margin-top: 20px;
@@ -398,7 +481,12 @@ function SetPasswordContent() {
 
           {/* Body */}
           <div className="sp-body">
-            {status.type === 'success' ? (
+            {initializing ? (
+              <div className="sp-init">
+                <div className="sp-spinner-dark" />
+                กำลังตรวจสอบลิงก์...
+              </div>
+            ) : status.type === 'success' ? (
               <div>
                 <div className="sp-msg success" style={{ marginTop: 0, marginBottom: 24 }}>
                   <span className="sp-msg-icon">✅</span>
@@ -407,6 +495,11 @@ function SetPasswordContent() {
                 <Link href="/login" className="sp-btn">
                   <span className="sp-btn-inner">ไปยังหน้าเข้าสู่ระบบ ➔</span>
                 </Link>
+              </div>
+            ) : !sessionReady ? (
+              <div className="sp-msg error" style={{ marginTop: 0 }}>
+                <span className="sp-msg-icon">⚠️</span>
+                <span>{status.message || 'ลิงก์ไม่ถูกต้องหรือหมดอายุ กรุณาให้แอดมินส่งคำเชิญใหม่'}</span>
               </div>
             ) : (
               <form onSubmit={handleConfirmPassword} autoComplete="off">
@@ -437,7 +530,6 @@ function SetPasswordContent() {
                     </button>
                   </div>
 
-                  {/* Strength bar */}
                   {password.length > 0 && (
                     <div className="sp-strength">
                       <div className="sp-strength-bars">
@@ -482,7 +574,6 @@ function SetPasswordContent() {
                     </button>
                   </div>
 
-                  {/* Match indicator */}
                   {confirmPassword.length > 0 && (
                     <div className="sp-match" style={{ color: password === confirmPassword ? '#34d399' : '#f87171' }}>
                       {password === confirmPassword ? '✓ รหัสผ่านตรงกัน' : '✗ รหัสผ่านไม่ตรงกัน'}
@@ -501,7 +592,7 @@ function SetPasswordContent() {
               </form>
             )}
 
-            {status.type === 'error' && (
+            {!initializing && sessionReady && status.type === 'error' && (
               <div className="sp-msg error">
                 <span className="sp-msg-icon">⚠️</span>
                 <span>{status.message}</span>
