@@ -29,6 +29,11 @@ interface SyncResponse {
 }
 
 function SetPasswordContent() {
+  // ✅ ดักจับ URL ตั้งแต่ render แรก (ก่อน effect อื่นจะลบ query ทิ้ง)
+  const [initialUrl] = useState<string>(() =>
+    typeof window !== 'undefined' ? window.location.href : ''
+  );
+
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [status, setStatus] = useState<{
@@ -45,9 +50,11 @@ function SetPasswordContent() {
 
   useEffect(() => {
     const init = async () => {
-      let diag = 'v4: no token';
+      let diag = 'v5: no token';
       try {
-        const params = new URLSearchParams(window.location.search);
+        // ✅ ใช้ URL ที่ดักจับไว้ตั้งแต่ render แรก ไม่ใช่ค่าปัจจุบัน (กันถูกล้าง)
+        const url = new URL(initialUrl || window.location.href);
+        const params = url.searchParams;
         const code = params.get('code');
         const tokenHash = params.get('token_hash');
         const type = (params.get('type') || 'invite') as
@@ -57,13 +64,16 @@ function SetPasswordContent() {
           | 'email'
           | 'magiclink';
 
+        // โชว์ URL จริงที่หน้าได้รับ (ตัดให้สั้น)
+        const shownUrl = (initialUrl || '').replace('https://', '').slice(0, 90);
+
         // 1) token_hash (วิธีหลัก) — ใช้ session จากผลลัพธ์โดยตรง
         if (tokenHash) {
           const { data, error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type,
           });
-          diag = `v4: session:${!!data?.session} user:${!!data?.user} err:${error?.message ?? 'none'}`;
+          diag = `v5: session:${!!data?.session} user:${!!data?.user} err:${error?.message ?? 'none'}`;
           if (error) throw error;
           if (data.session) {
             setSessionReady(true);
@@ -73,12 +83,14 @@ function SetPasswordContent() {
         // 2) code (PKCE)
         else if (code) {
           const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          diag = `v4(code): session:${!!data?.session} err:${error?.message ?? 'none'}`;
+          diag = `v5(code): session:${!!data?.session} err:${error?.message ?? 'none'}`;
           if (error) throw error;
           if (data.session) {
             setSessionReady(true);
             return;
           }
+        } else {
+          diag = `v5: no token | url=${shownUrl}`;
         }
 
         // เผื่อ session ถูกตั้งแล้วแบบหน่วงเวลา ลองเช็คซ้ำสั้น ๆ
@@ -101,7 +113,7 @@ function SetPasswordContent() {
     };
 
     init();
-  }, []);
+  }, [initialUrl]);
 
   const strength = (() => {
     if (!password) return 0;
