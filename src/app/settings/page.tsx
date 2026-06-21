@@ -55,6 +55,34 @@ function calculateAge(birthDateStr: string | null): number {
     return Math.max(0, age);
 }
 
+// ✅ คำนวณอายุละเอียดเป็น ปี/เดือน/วัน (เหมือนหน้าสมัคร)
+function getDetailedAge(birthDateStr: string | null): string {
+    if (!birthDateStr) return "-";
+
+    const birth = new Date(birthDateStr);
+    const today = new Date();
+    if (isNaN(birth.getTime())) return "-";
+
+    let years = today.getFullYear() - birth.getFullYear();
+    let months = today.getMonth() - birth.getMonth();
+    let days = today.getDate() - birth.getDate();
+
+    if (days < 0) {
+        months -= 1;
+        // จำนวนวันของเดือนก่อนหน้า (วันที่ 0 ของเดือนนี้ = วันสุดท้ายของเดือนก่อน)
+        const prevMonthDays = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+        days += prevMonthDays;
+    }
+    if (months < 0) {
+        years -= 1;
+        months += 12;
+    }
+
+    if (years < 0) return "-";
+
+    return `${years} ปี ${months} เดือน ${days} วัน`;
+}
+
 // ----------------------------------------------------------------------
 // Component ย่อย สำหรับแสดงแต่ละแถวข้อมูล
 // ----------------------------------------------------------------------
@@ -270,7 +298,7 @@ export default function SettingsPage() {
                             </CardHeader>
                             <CardContent className="pt-5 pb-5 text-[15px]">
                                 <ProfileRow label="ชื่อผู้ใช้" value={profileData.username || '-'} />
-                                <ProfileRow label="อายุ" value={profileData.birth_date ? `${calculateAge(profileData.birth_date)} ปี` : '-'} />  
+                                <ProfileRow label="อายุ" value={getDetailedAge(profileData.birth_date)} />  
                                 <ProfileRow label="วันเกิด" value={profileData.birth_date || '-'} />  
                                 <ProfileRow label="ส่วนสูง" value={profileData.height_cm ? `${profileData.height_cm} ซม.` : '-'} />
                                 <ProfileRow label="น้ำหนัก" value={profileData.weight_kg ? `${profileData.weight_kg} กก.` : '-'} />
