@@ -138,11 +138,24 @@ const BEVERAGE_BLACKLIST = [
     'น้ำม',
 ];
 
+// ❌ รายชื่ออาหารที่ไม่ต้องการให้แนะนำ (ทุกหมวด)
+const FOOD_BLACKLIST = [
+    'ราดหน้า',
+    'ขนมจีน',
+];
+
 // ✅ ฟังก์ชันตรวจสอบว่าชื่ออาหารดีหรือไม่
 const isValidFoodName = (name: string, category?: string): boolean => {
     if (!name || name.trim().length === 0) return false;
     
     const trimmed = name.trim().toLowerCase();
+
+    // ❌ ตรวจสอบ Blacklist อาหารทุกหมวด (ตัดเมนูที่ไม่ต้องการ เช่น ราดหน้า ขนมจีน)
+    for (const badName of FOOD_BLACKLIST) {
+        if (trimmed.includes(badName.toLowerCase())) {
+            return false;
+        }
+    }
     
     // ❌ ตรวจสอบ Blacklist เครื่องดื่ม
     if (category === 'เครื่องดื่ม') {
