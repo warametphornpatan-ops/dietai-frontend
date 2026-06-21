@@ -9,10 +9,8 @@ export async function GET(request: NextRequest) {
   
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const hash = requestUrl.hash;
 
   console.log('🔵 DEBUG: Code from URL:', code);
-  console.log('🔵 DEBUG: Hash from URL:', hash);
 
   if (code) {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -27,17 +25,16 @@ export async function GET(request: NextRequest) {
       }
       
       console.log('✅ DEBUG: Session exchanged successfully!', data);
+      
+      // ✅ Redirect พร้อม success flag เพื่อให้ set-password page รู้ว่า exchange สำเร็จ
+      return NextResponse.redirect(new URL('/auth/set-password?exchanged=true', requestUrl.origin));
     } catch (err) {
       console.error('❌ DEBUG: Callback error:', err);
       return NextResponse.redirect(new URL('/auth/set-password?error=callback_failed', requestUrl.origin));
     }
   }
 
-  if (hash) {
-    console.log('🔵 DEBUG: Hash detected, redirecting to set-password with hash');
-    return NextResponse.redirect(new URL(`/auth/set-password${hash}`, requestUrl.origin));
-  }
-
-  console.log('🔵 DEBUG: Redirecting to set-password');
+  // ไม่มี code → ไปที่ set-password ปกติ
+  console.log('🔵 DEBUG: No code found, redirecting to set-password');
   return NextResponse.redirect(new URL('/auth/set-password', requestUrl.origin));
 }

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -21,6 +22,7 @@ interface SyncResponse {
 }
 
 export default function SetPasswordPage() {
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [status, setStatus] = useState<{
@@ -36,40 +38,50 @@ export default function SetPasswordPage() {
     console.log('🔵 DEBUG: useEffect mounted, starting initialization...');
     setMounted(true);
     
-    // Handle hash-based auth (for recovery/reset links from email)
-    const handleAuthCallback = async () => {
-      const hash = window.location.hash;
-      console.log('🔵 DEBUG: URL hash:', hash);
-      
-      if (hash.includes('access_token')) {
-        console.log('🔵 DEBUG: Found access_token in hash, getting session...');
-        
-        try {
-          const { data, error } = await supabase.auth.getSession();
-          if (error) {
-            console.error('❌ DEBUG: Session error from hash:', error);
-            return;
-          }
-          console.log('✅ DEBUG: Session retrieved from hash:', data);
-        } catch (err) {
-          console.error('❌ DEBUG: Hash auth error:', err);
-        }
-      }
-    };
+    // ✅ ดึง query param exchanged เพื่อรู้ว่า callback สำเร็จไหม
+    const exchanged = searchParams.get('exchanged') === 'true';
+    const error = searchParams.get('error');
     
-    handleAuthCallback();
+    console.log('🔵 DEBUG: Query params - exchanged:', exchanged, 'error:', error);
+    
+    if (error) {
+      setStatus({ 
+        type: 'error', 
+        message: `ข้อผิดพลาด: ${error}. กรุณากดลิงก์จากอีเมลใหม่` 
+      });
+      return;
+    }
     
     const checkSession = async () => {
-      console.log('🔵 DEBUG: Checking initial session...');
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        console.log("ℹ️ DEBUG: ยังไม่มีเซสชันที่ถูกต้อง หรือลิงก์หมดอายุ");
-      } else {
-        console.log("✅ DEBUG: Session found on mount:", data.session.user.email);
+      console.log('🔵 DEBUG: Checking session...');
+      
+      // ✅ ถ้า exchanged=true ให้รอ session นิดหน่อย (Supabase อาจยังไม่ sync)
+      let retries = 0;
+      const maxRetries = 5;
+      let hasSession = false;
+      
+      while (retries < maxRetries && !hasSession) {
+        const { data } = await supabase.auth.getSession();
+        console.log(`🔵 DEBUG: Session check ${retries + 1}/${maxRetries}:`, data.session ? '✅ Found' : '❌ Not found');
+        
+        if (data.session) {
+          hasSession = true;
+          console.log("✅ DEBUG: Session found:", data.session.user.email);
+          break;
+        }
+        
+        // รอ 500ms ก่อนลองใหม่
+        await new Promise(resolve => setTimeout(resolve, 500));
+        retries++;
+      }
+      
+      if (!hasSession && exchanged) {
+        console.warn("⚠️ DEBUG: Exchange flag set แต่ยังไม่มี session - อาจจะลิงก์หมดอายุหรือ server ช้า");
       }
     };
+    
     checkSession();
-  }, []);
+  }, [searchParams]);
 
   const strength = (() => {
     if (!password) return 0;
