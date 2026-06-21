@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import Link from 'next/link'; // ✅ นำเข้า Link สำหรับเปลี่ยนหน้า
+import Link from 'next/link';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -33,11 +33,39 @@ export default function SetPasswordPage() {
   const [mounted, setMounted] = useState<boolean>(false);
 
   useEffect(() => {
+    console.log('🔵 DEBUG: useEffect mounted, starting initialization...');
     setMounted(true);
+    
+    // Handle hash-based auth (for recovery/reset links from email)
+    const handleAuthCallback = async () => {
+      const hash = window.location.hash;
+      console.log('🔵 DEBUG: URL hash:', hash);
+      
+      if (hash.includes('access_token')) {
+        console.log('🔵 DEBUG: Found access_token in hash, getting session...');
+        
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          if (error) {
+            console.error('❌ DEBUG: Session error from hash:', error);
+            return;
+          }
+          console.log('✅ DEBUG: Session retrieved from hash:', data);
+        } catch (err) {
+          console.error('❌ DEBUG: Hash auth error:', err);
+        }
+      }
+    };
+    
+    handleAuthCallback();
+    
     const checkSession = async () => {
+      console.log('🔵 DEBUG: Checking initial session...');
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
-        console.log("ยังไม่มีเซสชันที่ถูกต้อง หรือลิงก์หมดอายุ");
+        console.log("ℹ️ DEBUG: ยังไม่มีเซสชันที่ถูกต้อง หรือลิงก์หมดอายุ");
+      } else {
+        console.log("✅ DEBUG: Session found on mount:", data.session.user.email);
       }
     };
     checkSession();
@@ -137,7 +165,7 @@ export default function SetPasswordPage() {
           min-height: 100vh;
           background: #f7faf8;
           display: flex;
-          flex-direction: column; /* ✅ สลับมาใช้คอลัมน์เพื่อจัดวางลิ้งก์ข้างล่างการ์ด */
+          flex-direction: column;
           align-items: center;
           justify-content: center;
           font-family: 'Noto Sans Thai', 'DM Sans', sans-serif;
@@ -383,7 +411,6 @@ export default function SetPasswordPage() {
 
         .sp-msg-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
 
-        /* ✅ เพิ่มสไตล์สำหรับลิงก์ย้อนกลับด้านล่างการ์ด */
         .sp-footer-link {
           margin-top: 20px;
           font-size: 14px;
@@ -416,7 +443,6 @@ export default function SetPasswordPage() {
 
           {/* Body */}
           <div className="sp-body">
-            {/* ✅ ถ้าสำเร็จแล้วจะซ่อนฟอร์มและโชว์ปุ่มไปหน้าล็อคอินที่เห็นได้ชัดเจนแทน */}
             {status.type === 'success' ? (
               <div>
                 <div className="sp-msg success" style={{ marginTop: 0, marginBottom: 24 }}>
@@ -529,7 +555,6 @@ export default function SetPasswordPage() {
           </div>
         </div>
 
-        {/* ✅ ลิงก์ Footer ด้านล่างกล่องสำหรับกดย้อนกลับหน้าล็อกอินได้ตลอดเวลา */}
         <Link href="/login" className="sp-footer-link">
           ← ย้อนกลับไปหน้าเข้าสู่ระบบ
         </Link>
