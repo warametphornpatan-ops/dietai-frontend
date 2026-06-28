@@ -282,7 +282,7 @@ function PrimaryBtn({
 
 const stepTitles = [
   "เพศของคุณ",
-  "วันเดือนปีเกิด",
+  "วัน-เดือน-ปี (ค.ศ) เกิด",
   "ส่วนสูง",
   "น้ำหนัก",
   "กิจกรรมประจำวัน",
@@ -716,7 +716,7 @@ export default function RegisterWizard() {
         {step === 1 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <label style={{ fontSize: 13, color: "#2d7055", fontWeight: 600 }}>
-              วันเดือนปีเกิด
+              วัน-เดือน-ปี (ค.ศ) เกิด
             </label>
             <StyledInput
               type="date"
